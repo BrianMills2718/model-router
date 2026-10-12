@@ -599,6 +599,18 @@ describe('bill', () => {
     await ui.unmount()
   })
 
+  test('the header follows /router on the same mounted pane', async ($, on) => {
+    mock.clock(on)
+    mock.store(on)
+    const ui = await mountPane($)
+    await $.command.run({ command: 'router', args: 'sonnet' } as never)
+    expect(await ui.find({ type: 'Text', text: 'Model router · sonnet' })).toBeDefined()
+    await $.command.run({ command: 'router', args: 'on' } as never)
+    expect(await ui.find({ type: 'Text', text: 'Model router · on' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Model router · sonnet' })).toBe(undefined)
+    await ui.unmount()
+  })
+
   test('a narrow pane keeps the money columns whole and truncates the agent name', async ($, on) => {
     mock.clock(on)
     on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))

@@ -48,6 +48,6 @@ export type RouterLedger = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'model-router': { ledger: RouterLedger }
+    'model-router': { ledger: RouterLedger; mode: 'on' | 'off' | 'haiku' | 'sonnet' | 'opus' | undefined }
   }
 }

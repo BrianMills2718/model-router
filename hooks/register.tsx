@@ -38,6 +38,8 @@ import {
 const PANE = 'model-router'
 const EMPTY: RouterLedger = { rows: {}, classifierCost: 0, routed: 0 }
 const ledger = atom({ plugin: 'model-router', key: 'ledger' } as const, EMPTY)
+/** The `/router` mode in this session; the pane redraws when it is written. */
+const modeState = atom({ plugin: 'model-router', key: 'mode' } as const, undefined)
 
 const TIER_WORD: Record<Tier, string> = { simple: 'easy', standard: 'normal', hard: 'hard', long: 'long' }
 
@@ -235,6 +237,28 @@ function timeout($: EngineInterface, ms: number): Promise<undefined> {
   return $.clock.sleep(ms).then(() => undefined)
 }
 
+/**
+ * The `/router` mode in this session: the atom the pane and spawns read. modeMemo stands in
+ * when the atom is empty (/clear wipes state); setMode keeps both in step. A hot reload
+ * starts modeMemo over, and the store is read back once.
+ */
+let modeMemo: Mode = 'on'
+let modeLoaded = false
+
+async function currentMode($: EngineInterface): Promise<Mode> {
+  if (!modeLoaded) {
+    modeLoaded = true
+    modeMemo = (await storedMode($)) ?? modeMemo
+  }
+  return (await read($, modeState)) ?? modeMemo
+}
+
+async function setMode($: EngineInterface, next: Mode) {
+  modeLoaded = true
+  modeMemo = next
+  await update($, modeState, () => next)
+}
+
 /** The `/router` mode saved by an earlier session, if any. */
 async function storedMode($: EngineInterface): Promise<Mode | undefined> {
   try {
@@ -304,9 +328,6 @@ export const register: Register = (on, options) => {
   const riskFloor = options.riskFloor !== false
   const pressureAt = options.limitPressure === 'off' ? undefined : pressureThreshold(options.limitPressure)
 
-  // Module state starts over on a hot reload; the mode is read back from the store.
-  let mode: Mode = 'on'
-  let modeLoaded = false
   /**
    * The model each agent type ran on when the router left it alone, by type. A built-in
    * such as Explore runs on its own model, not its parent's, so this is its baseline.
@@ -322,10 +343,7 @@ export const register: Register = (on, options) => {
   const spawnRows = new Map<string, SpawnRow>()
 
   on('session.start', async ($, e, next) => {
-    if (!modeLoaded) {
-      modeLoaded = true
-      mode = (await storedMode($)) ?? mode
-    }
+    const mode = await currentMode($)
     if (mode !== 'on') $.ui.status(modeLabel(mode))
     for (const role of ROLES) {
       try {
@@ -351,28 +369,23 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'router' }, async ($, e) => {
     const arg = e.args.trim().toLowerCase()
-    if (!modeLoaded) {
-      modeLoaded = true
-      mode = (await storedMode($)) ?? mode
-    }
     if (arg === 'reset') {
       await update($, ledger, () => EMPTY)
-      $.ui.status(modeLabel(mode))
+      $.ui.status(modeLabel(await currentMode($)))
       return { text: 'Model router bill cleared.' }
     }
-    if (arg === 'status') return { text: `Model router ${modeText(mode)}.` }
+    if (arg === 'status') return { text: `Model router ${modeText(await currentMode($))}.` }
     const picked = parseMode(arg)
     if (picked) {
-      mode = picked
-      modeLoaded = true
+      await setMode($, picked)
       try {
-        await $.store.set(MODE_KEY, mode)
+        await $.store.set(MODE_KEY, picked)
       } catch (err) {
         $.ui.log(`could not save the router mode: ${String(err)}`)
       }
-      await refreshStatus($, baseline, baselineName, mode, pressureAt)
-      const back = mode === 'on' ? '' : '; /router on to go back'
-      return { text: `Model router ${modeText(mode)}. Kept across sessions${back}.` }
+      await refreshStatus($, baseline, baselineName, picked, pressureAt)
+      const back = picked === 'on' ? '' : '; /router on to go back'
+      return { text: `Model router ${modeText(picked)}. Kept across sessions${back}.` }
     }
     if (arg) return { text: `Unknown option "${arg}". Use on, off, haiku, sonnet, opus, status or reset.` }
     await $.ui.open({ id: PANE, title: 'Model router', focus: true, closeOnEscape: true })
@@ -392,10 +405,7 @@ export const register: Register = (on, options) => {
 
   // 1. Haiku reads the task and sorts it. 2. The router sets the model.
   on('agent.spawn', async ($, e, next) => {
-    if (!modeLoaded) {
-      modeLoaded = true
-      mode = (await storedMode($)) ?? mode
-    }
+    const mode = await currentMode($)
     await loadTypeModels($, typeModels)
     const callSetEffort = callEffort.delete(e.tool_use_id)
     const role = roleOf(e.subagentType)
@@ -591,20 +601,20 @@ export const register: Register = (on, options) => {
   // marks the row finished (once) and brings the status line up to date at once.
   on('turn.complete', async ($, e, next) => {
     if (e.agentId) await finishAgent($, e.agentId, spawnRows)
-    await refreshStatus($, baseline, baselineName, mode, pressureAt)
+    await refreshStatus($, baseline, baselineName, await currentMode($), pressureAt)
     return next(e)
   })
 
   on('classic.SubagentStop', async ($, e, next) => {
     await finishAgent($, e.agent_id, spawnRows)
-    await refreshStatus($, baseline, baselineName, mode, pressureAt)
+    await refreshStatus($, baseline, baselineName, await currentMode($), pressureAt)
     return next(e)
   }).catch(($, e, next) => next(e)) // the bill is a side job: never hold up a stop
 
   // /clear starts a new session with an empty bill, so the totals go. Kept to one call:
   // session.end shares a short bound. spawnRows stays, for agents still running.
   on('session.end', async ($, e, next) => {
-    if (e.reason === 'clear') $.ui.status(modeLabel(mode))
+    if (e.reason === 'clear') $.ui.status(modeLabel(await currentMode($)))
     return next(e)
   })
 
@@ -633,6 +643,7 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
+    const mode = await currentMode($)
     const l = await read($, ledger)
     const t = totals(l, baseline)
     const width = Math.max(FIXED_WIDTH + AGENT_MIN, (e.props.bodyColumns ?? 60) - 2)
