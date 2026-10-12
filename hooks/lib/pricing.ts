@@ -153,16 +153,28 @@ export function roleOf(agentType: string): string | undefined {
 }
 
 /**
- * The role's limits, then `long` only for background work: a foreground task the
- * parent waits on goes to Opus, never to Fable at 2.5 times the price.
+ * The role's limits, then `long` only when allowed: a task that does not ask for
+ * long-running or unattended work goes to Opus, never to Fable at 2.5 times the price.
  */
-export function clampTier(tier: Tier, role: string | undefined, background = true): Tier {
+export function clampTier(tier: Tier, role: string | undefined, allowLong = true): Tier {
   let i = ORDER.indexOf(tier)
   const lim = role ? ROLE_LIMITS[role] : undefined
   if (lim?.min) i = Math.max(i, ORDER.indexOf(lim.min))
   if (lim?.max) i = Math.min(i, ORDER.indexOf(lim.max))
-  if (!background) i = Math.min(i, ORDER.indexOf('hard'))
+  if (!allowLong) i = Math.min(i, ORDER.indexOf('hard'))
   return ORDER[i]!
+}
+
+/**
+ * Words that ask for a long or unattended run. Narrow on purpose: the Agent tool runs
+ * agents in the background by default, so "in the background" says nothing about length.
+ */
+const LONG_RUN =
+  /(?<!\bin\s+the\s+)\blong[- ]?run(ning)?\b|\bunattended\b|\bovernight\b|\bmulti[- ]?hours?\b|\bfor\s+((several|many|a\s+few|\d+)\s+)?hours\b|\bhours[- ]long\b|\bautonomously\b|\bkeep\s+(going|working|running)\s+until\b/i
+
+/** True when the task itself asks for long-running or unattended work: the only way to `long`. */
+export function asksForLongRun(text: string): boolean {
+  return LONG_RUN.test(text)
 }
 
 /**
@@ -176,11 +188,11 @@ export function clampTier(tier: Tier, role: string | undefined, background = tru
 export function routeTier(
   tier: Tier,
   role: string | undefined,
-  background: boolean,
+  allowLong: boolean,
   o: { risky?: boolean; underPressure?: boolean } = {},
 ): Tier {
   const i = ORDER.indexOf(tier)
-  let t = clampTier(o.underPressure ? ORDER[Math.max(0, i - 1)]! : tier, role, background && !o.underPressure)
+  let t = clampTier(o.underPressure ? ORDER[Math.max(0, i - 1)]! : tier, role, allowLong && !o.underPressure)
   if (o.risky && ORDER.indexOf(t) < ORDER.indexOf('hard')) t = 'hard'
   return t
 }
@@ -228,7 +240,7 @@ export const CLASSIFIER_SYSTEM = `You route coding subagent tasks to a model. Re
 simple   - mechanical, little judgment: rename, find/search/grep, list files, run an existing test or build command and report, format, small single-file edits with an obvious answer.
 standard - normal feature work: implement a function or component, write tests, a refactor within a few files, a bug with a clear repro.
 hard     - needs deep reasoning: architecture or design decisions, an intermittent or cross-cutting bug, concurrency, security, performance work, a migration with subtle risk.
-long     - a multi-hour autonomous run: a large multi-step build or migration across many files, explicitly long-running or background work that must keep going unattended.
+long     - only when the task explicitly asks for long-running or unattended multi-hour work, such as a large build or migration left to run overnight. Running in the background is not long.
 
 Pick the cheapest tier that will succeed. If unsure between two, pick the higher.
 
@@ -246,12 +258,10 @@ export function classifierPrompt(input: {
   agentType: string
   description: string
   prompt: string
-  background: boolean
 }): string {
   const body = input.prompt.length > 6000 ? input.prompt.slice(0, 6000) + '\n[...truncated]' : input.prompt
   return [
     `Agent type: ${input.agentType}`,
-    `Runs in background: ${input.background ? 'yes' : 'no'}`,
     `Short description: ${input.description}`,
     'Task:',
     '<task>',

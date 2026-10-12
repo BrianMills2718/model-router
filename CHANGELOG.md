@@ -4,6 +4,24 @@ All notable changes to model-router. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-12
+
+### Added
+
+- A band above the prompt with one line per running routed subagent, such as `⇄ builder: fix login → Sonnet · $0.03`. A line fades 30 seconds after its agent finishes.
+
+### Changed
+
+- `long` (Fable) only when the task itself asks for long-running or unattended work (an overnight migration, a multi-hour run). The Agent tool now runs agents in the background by default, so running in the background no longer counts, and the classifier is no longer told whether an agent runs in the background.
+- A built-in agent such as Explore runs on its own model, not its parent's. Its baseline is now the model its type was last seen running on unrouted, kept across sessions, instead of the parent's. The router's own agents (architect, builder, fixer, runner) now compare against Sonnet, the model they are registered with, instead of the parent's, so a session on Opus no longer overstates what routing them saved.
+- The bill pane is redesigned: a `Model router · <mode>` header, `Spent` and `Unrouted ... saved N%` on their own lines, a table with Agent, Tier, Model, Cost and Unrouted columns, and a footer with the agent count, routed count and classifier cost. Tiers read as words (`easy`, `normal`, `hard`, `long`) instead of `S`, `M`, `H`, `L`; the `!` and `↓` marks are explained only when such a row is on screen. With no subagents yet, the pane says how to get one.
+
+### Fixed
+
+- A subagent's row is no longer lost when `/clear` resets the bill while the agent runs: the next step writes it again with its label, tier and model.
+- The status line now updates as soon as a subagent finishes, not at the next turn of the main conversation.
+- `/clear` resets the status line along with the bill.
+
 ## [0.4.1] - 2026-10-09
 
 ### Fixed
@@ -53,7 +71,8 @@ First public release.
 - Settings: **Compare against** (`unrouted`, `fable`, `opus`, `sonnet`), **Route every subagent**, **Keep a model Claude asked for**.
 - Pricing from the October 2026 API list prices, including Haiku 5.5's higher rate above a 100K-token prompt.
 
-[Unreleased]: https://github.com/aott33/model-router/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/aott33/model-router/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/aott33/model-router/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/aott33/model-router/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/aott33/model-router/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/aott33/model-router/compare/v0.2.1...v0.3.0

@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
 import {
+  asksForLongRun,
   capEffort,
   clampTier,
   costOf,
@@ -62,10 +63,20 @@ describe('pure routing rules', () => {
     expect(clampTier('long', 'runner')).toBe('standard')
     expect(clampTier('simple', 'architect')).toBe('standard')
     expect(clampTier('simple', undefined)).toBe('simple')
+    // third argument: whether the task asked for a long run
     expect(clampTier('long', 'builder', false)).toBe('hard')
     expect(clampTier('long', 'builder', true)).toBe('long')
     expect(tierOfModel('opus')).toBe('hard')
     expect(tierOfModel('claude-haiku-4-5')).toBe('simple')
+  })
+
+  test('long only when the task asks for a long or unattended run', async () => {
+    expect(asksForLongRun('migrate all services unattended overnight')).toBe(true)
+    expect(asksForLongRun('Start a long-running build of every package')).toBe(true)
+    expect(asksForLongRun('keep going until every test passes')).toBe(true)
+    expect(asksForLongRun('run this in the background')).toBe(false)
+    expect(asksForLongRun('rename x')).toBe(false)
+    expect(asksForLongRun('in the long run this saves time')).toBe(false)
   })
 
   test('effort is only ever lowered', async () => {
@@ -123,9 +134,7 @@ describe('agent.spawn', () => {
     expect(spawnedOn).toBe('claude-sonnet-5-5')
   })
 
-  // `$.agent.spawn` cannot start a background agent, so the background case is
-  // covered by clampTier above.
-  test('long goes to Opus for a foreground task', async ($, on) => {
+  test('long goes to Opus for a task that does not ask for a long run', async ($, on) => {
     mock.clock(on)
     let spawnedOn: string | undefined
     on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'long', usage: USAGE } }))
@@ -135,6 +144,30 @@ describe('agent.spawn', () => {
     })
     await $.agent.spawn(spawnInput())
     expect(spawnedOn).toBe('claude-opus-5-5')
+  })
+
+  test('running in the background is not a long run', async ($, on) => {
+    mock.clock(on)
+    let spawnedOn: string | undefined
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'long', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'l2' }
+    })
+    await $.agent.spawn(spawnInput({ background: true }))
+    expect(spawnedOn).toBe('claude-opus-5-5')
+  })
+
+  test('a task that asks for an unattended run goes to Fable', async ($, on) => {
+    mock.clock(on)
+    let spawnedOn: string | undefined
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'long', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'l3' }
+    })
+    await $.agent.spawn(spawnInput({ prompt: 'Run the whole migration unattended overnight', description: 'migration' }))
+    expect(spawnedOn).toBe('claude-fable-5-1')
   })
 
   test('a failed classifier falls back to the role default', async ($, on) => {
@@ -290,6 +323,19 @@ describe('risk floor and rate limits', () => {
     })
     await $.agent.spawn(spawnInput())
     expect(spawnedOn).toBe('claude-sonnet-5-5')
+  })
+
+  test('an unattended run goes to Opus, not Fable, under rate-limit pressure', async ($, on) => {
+    mock.clock(on)
+    limitsAt(on, 85)
+    let spawnedOn: string | undefined
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'long', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'p5' }
+    })
+    await $.agent.spawn(spawnInput({ prompt: 'Run the whole migration unattended overnight', description: 'migration' }))
+    expect(spawnedOn).toBe('claude-opus-5-5')
   })
 
   test('below the threshold, nothing changes', async ($, on) => {
@@ -472,40 +518,278 @@ describe('classifier fallback', () => {
   })
 })
 
+/** Answers every model request with 2k tokens in and 1k out, on `model`. */
+function answerSteps(on: any, model: string) {
+  on('turn.step', async function* (_$: unknown, e: any) {
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: 'done',
+      toolUses: [],
+      stopReason: 'end_turn' as never,
+      usage: { ...USAGE, input_tokens: 2000, model },
+    }
+  })
+}
+
+function mountPane($: any) {
+  return $.ui.mount({
+    plugin: 'model-router',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'model-router',
+    props: { title: 'Model router', isFocused: false, bodyColumns: 70, placement: 'dock' } as never,
+  })
+}
+
+/** What the engine draws in the band and how it ends a turn, beneath the plugins. */
+function engineBeneath(on: any) {
+  on('ui.render', { component: 'AbovePrompt' }, async () => ({ type: 'Box', children: [] }))
+  on('turn.complete', async (_$: unknown, e: any) => ({ text: e.answer }))
+  on('session.end', async (_$: unknown, e: any) => ({ sessionId: e.sessionId }))
+}
+
+function mountBand($: any) {
+  return $.ui.mount({
+    plugin: 'model-router',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    requestId: 'band',
+    props: { hasSurvey: false, isWorking: true, maxRows: 10, bodyColumns: 80 } as never,
+  })
+}
+
+/** Ends a run of subagent `agentId`, as its loop's turn.complete does. */
+function complete($: any, agentId: string) {
+  return $.turn.complete({ agentId, turnId: 't1', answer: '', durationMs: 1, isAborted: false, reason: 'answer' } as never)
+}
+
 describe('bill', () => {
-  test('a routed step is priced on Haiku 5.5 and against the parent model', async ($, on) => {
+  test('a routed step is priced on Haiku 5.5 and against the builder on Sonnet', async ($, on) => {
     mock.clock(on)
     on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
     on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
-    on('turn.step', async function* (_$, e) {
-      return {
-        turnId: e.turnId,
-        index: e.index,
-        answer: 'done',
-        toolUses: [],
-        stopReason: 'end_turn' as never,
-        usage: { ...USAGE, input_tokens: 2000, model: 'claude-haiku-5-5' },
-      }
-    })
+    answerSteps(on, 'claude-haiku-5-5')
     await $.agent.spawn(spawnInput())
-    const s = $.turn.step({ turnId: 't1', index: 0, model: 'claude-haiku-5-5', messageCount: 1, agentId: 'a1' })
-    for await (const _ of s) {
-      // drain
-    }
-    await s.result
+    await step($, 'a1', undefined)
 
-    // 2k in + 1k out: Haiku 5.5 $0.0007, Opus 5.5 (the parent) $0.028; the Haiku 4.5
-    // classifier call adds $0.006, so $0.0067 against $0.028 is 76% saved
-    const ui = await $.ui.mount({
-      plugin: 'model-router',
-      surface: 'terminal',
-      component: 'Pane',
-      requestId: 'model-router',
-      props: { title: 'Model router', isFocused: false, bodyColumns: 70, placement: 'dock' } as never,
-    })
-    expect(await ui.find({ type: 'Text', text: /<\$0\.01 spent · \$0\.03 unrouted/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /76% saved/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /rename fooBar\s+S\s+Haiku/ })).toBeDefined()
+    // 2k in + 1k out: Haiku 5.5 $0.0007, Sonnet 5.5 (the builder's registered model) $0.014;
+    // the Haiku 4.5 classifier call adds $0.006, so $0.0067 against $0.014 is 52% saved
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: 'Model router · on' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Spent <\$0\.01$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01\s+saved 52%$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'rename fooBar' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^easy$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Haiku$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^1 agent · 1 routed · classifier <\$0\.01$/ })).toBeDefined()
+    // no risky or lowered row, so no legend for them
+    expect(await ui.find({ type: 'Text', text: /risky/ })).toBe(undefined)
+    expect(await ui.find({ type: 'Text', text: /rate limits/ })).toBe(undefined)
     await ui.unmount()
+  })
+
+  test('with no subagents the pane says how to get one', async ($, on) => {
+    mock.clock(on)
+    const ui = await mountPane($)
+    expect(
+      await ui.find({ type: 'Text', text: 'No subagents yet. Ask Claude to use an agent and it shows up here.' }),
+    ).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Agent$/ })).toBe(undefined)
+    await ui.unmount()
+  })
+
+  test('a risky row shows hard! and the legend explains it', async ($, on) => {
+    mock.clock(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple risky', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'k1' }))
+    answerSteps(on, 'claude-opus-5-5')
+    await $.agent.spawn(spawnInput())
+    await step($, 'k1', undefined)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^hard!$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '! risky: sent to Opus at least' })).toBeDefined()
+    await ui.unmount()
+  })
+})
+
+describe('baseline for built-in agents', () => {
+  test('a routed Explore is compared with the model Explore was seen running on', async ($, on) => {
+    mock.clock(on)
+    mock.store(on, { agentModels: { Explore: 'claude-haiku-5-5' } })
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'standard', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'x1' }))
+    answerSteps(on, 'claude-sonnet-5-5')
+    await $.agent.spawn(spawnInput({ subagentType: 'Explore', description: 'find callers' }))
+    await step($, 'x1', undefined)
+    const ui = await mountPane($)
+    // Sonnet 5.5 $0.014 against Haiku 5.5 $0.0007, not the parent's Opus $0.028
+    expect(await ui.find({ type: 'Text', text: /^Unrouted <\$0\.01\s+\d+% more$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
+    await ui.unmount()
+  })
+
+  test('the model an unrouted Explore ran on becomes its baseline', async ($, on) => {
+    mock.clock(on)
+    mock.store(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'standard', usage: USAGE } }))
+    let n = 0
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? 'claude-haiku-5-5', agentId: `y${++n}` }))
+    answerSteps(on, 'claude-sonnet-5-5')
+    await $.command.run({ command: 'router', args: 'off' } as never)
+    await $.agent.spawn(spawnInput({ subagentType: 'Explore', description: 'find callers' }))
+    await $.command.run({ command: 'router', args: 'on' } as never)
+    await $.agent.spawn(spawnInput({ subagentType: 'Explore', description: 'find callees' }))
+    await step($, 'y2', undefined)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^Unrouted <\$0\.01/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
+    await ui.unmount()
+  })
+})
+
+describe('baseline for router roles', () => {
+  test('a routed role is compared with Sonnet, its registered model, not the parent Opus', async ($, on) => {
+    mock.clock(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'standard', usage: USAGE } }))
+    let n = 0
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: `b${++n}` }))
+    answerSteps(on, 'claude-sonnet-5-5')
+    await $.agent.spawn(spawnInput())
+    await step($, 'b1', undefined)
+    let ui = await mountPane($)
+    // the builder's step: Sonnet $0.014 against Sonnet $0.014; on Opus it would be $0.028
+    expect(await ui.findAll({ type: 'Text', text: /^\$0\.01$/ })).toHaveLength(2)
+    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
+    await ui.unmount()
+
+    await $.agent.spawn(spawnInput({ subagentType: 'model-router:fixer', description: 'fix login' }))
+    await step($, 'b2', undefined)
+    ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.03/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
+    await ui.unmount()
+  })
+})
+
+describe('band above the prompt', () => {
+  test('a routed subagent has a line until 30 seconds after it finishes', async ($, on) => {
+    const clock = mock.clock(on)
+    engineBeneath(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.agent.spawn(spawnInput())
+    await step($, 'a1', undefined)
+    const ui = await mountBand($)
+    expect(await ui.find({ type: 'Text', text: /⇄ builder: rename fooBar → Haiku · / })).toBeDefined()
+    await complete($, 'a1')
+    await clock.advance(29_000)
+    expect(await ui.find({ type: 'Text', text: /⇄ builder: rename fooBar/ })).toBeDefined()
+    await clock.advance(2_000)
+    expect(await ui.find({ type: 'Text', text: /⇄/ })).toBe(undefined)
+    await ui.unmount()
+  })
+
+  test('SubagentStop finishes the line too', async ($, on) => {
+    const clock = mock.clock(on)
+    engineBeneath(on)
+    on('classic.SubagentStop', async () => ({}))
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.agent.spawn(spawnInput())
+    await step($, 'a1', undefined)
+    const ui = await mountBand($)
+    await $.classic.SubagentStop({
+      agent_id: 'a1',
+      agent_type: 'model-router:builder',
+      agent_transcript_path: '',
+      stop_hook_active: false,
+    } as never)
+    await clock.advance(29_000)
+    // a turn.complete for the same run does not restart the fade
+    await complete($, 'a1')
+    await clock.advance(2_000)
+    expect(await ui.find({ type: 'Text', text: /⇄/ })).toBe(undefined)
+    await ui.unmount()
+  })
+
+  test('an unrouted subagent has no line', async ($, on) => {
+    mock.clock(on)
+    engineBeneath(on)
+    on('agent.spawn', async () => ({ model: 'claude-opus-5-5', agentId: 'f1' }))
+    answerSteps(on, 'claude-opus-5-5')
+    await $.agent.spawn(spawnInput({ fork: true, subagentType: 'fork' }))
+    await step($, 'f1', undefined)
+    const ui = await mountBand($)
+    expect(await ui.find({ type: 'Text', text: /⇄/ })).toBe(undefined)
+    await ui.unmount()
+  })
+})
+
+describe('/clear', () => {
+  test('a row wiped while its agent runs is written again from the spawn', async ($, on) => {
+    mock.clock(on)
+    engineBeneath(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.agent.spawn(spawnInput())
+    // what /clear does to $.state, as far as the ledger goes
+    await $.command.run({ command: 'router', args: 'reset' } as never)
+    await step($, 'a1', undefined)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: 'rename fooBar' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^easy$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'subagent' })).toBe(undefined)
+    expect(await ui.find({ type: 'Text', text: /1 routed/ })).toBeDefined()
+    await ui.unmount()
+    const band = await mountBand($)
+    expect(await band.find({ type: 'Text', text: /⇄ builder: rename fooBar → Haiku/ })).toBeDefined()
+    await band.unmount()
+  })
+})
+
+describe('status line', () => {
+  test('updates when a subagent finishes and resets on /clear', async ($, on) => {
+    mock.clock(on)
+    engineBeneath(on)
+    const seen: (string | undefined)[] = []
+    on('ui.status', async (_$, e) => {
+      seen.push(e.text)
+      return { value: undefined }
+    })
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.agent.spawn(spawnInput())
+    await step($, 'a1', undefined)
+    await complete($, 'a1')
+    expect(seen.at(-1)).toContain('$')
+    expect(seen.at(-1)).toContain('saved')
+    await $.session.end({ reason: 'clear', sessionId: 's1', resume: {} } as never)
+    expect(seen.at(-1)).toBe(undefined)
+  })
+
+  test('says how much more when routing cost more than the baseline', async ($, on) => {
+    mock.clock(on)
+    mock.store(on, { agentModels: { Explore: 'claude-haiku-5-5' } })
+    engineBeneath(on)
+    const seen: (string | undefined)[] = []
+    on('ui.status', async (_$, e) => {
+      seen.push(e.text)
+      return { value: undefined }
+    })
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'standard', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'x1' }))
+    answerSteps(on, 'claude-sonnet-5-5')
+    await $.agent.spawn(spawnInput({ subagentType: 'Explore', description: 'find callers' }))
+    await step($, 'x1', undefined)
+    await complete($, 'x1')
+    // Sonnet 5.5 against Explore's own Haiku 5.5 costs more, so no negative "saved"
+    expect(seen.at(-1)).toMatch(/\(\d+% more\)/)
+    expect(seen.at(-1)).not.toContain('saved')
   })
 })
