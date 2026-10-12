@@ -51,7 +51,7 @@ Needs Claude Code 2.1.287 or later (mods).
 - A routed subagent's first request may wait up to 2 seconds for its spawn to be recorded, so it gets its effort from the start.
 - Only subagents are routed. The main conversation stays on your session model, so total savings depend on how much work goes through subagents.
 - Costs use API list prices (Oct 2026) and treat cache writes as 5-minute writes. Haiku 5.5 costs five times as much above a 100K-token prompt; the actual cost is priced per request, the baseline on each row's summed tokens at the lower rate. On a Pro or Max plan the dollar figures are API-equivalent; what you actually save is rate-limit headroom.
-- The baseline assumes the same token counts on the baseline model. Different models use different token counts for the same task, so the "saved" figure is an estimate. A built-in agent's own model is learned from when it last ran unrouted; until then its parent's model stands in.
+- The baseline assumes the same token counts on the baseline model. Different models use different token counts for the same task, so the "saved" figure is an estimate. A built-in agent's own model is learned from when it last ran unrouted; until then its parent's model stands in. With **Route every subagent** on (the default), built-ins are routed, so this is only learned while that setting is off or after `/router off`: the engine does not say which model a built-in would choose.
 - Model ids live in `hooks/lib/pricing.ts`. Update them and the price table when models change.
 
 ## Develop
