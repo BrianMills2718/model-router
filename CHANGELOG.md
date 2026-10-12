@@ -4,6 +4,10 @@ All notable changes to model-router. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- The bill pane draws again after `/clear`. Its render hook used to write the `/router` mode back to `$.state` when `/clear` had emptied it, which the engine refuses while a draw runs (`state.set: denied`). The pane now only reads: the mode in `$.state`, else the one saved in the store, else `on`. The mode is written back from session start, `/router`, a spawn, a turn step and `/clear` itself.
+
 ## [0.5.0] - 2026-10-12
 
 ### Added

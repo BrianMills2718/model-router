@@ -611,6 +611,21 @@ describe('bill', () => {
     await ui.unmount()
   })
 
+  test('the pane draws the stored mode when the state is empty, without writing state', async ($, on) => {
+    mock.clock(on)
+    mock.store(on, { mode: 'sonnet' })
+    const written: string[] = []
+    on('state.set', async (_$, e: any, next) => {
+      written.push(e.key)
+      return next(e)
+    })
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: 'Model router · sonnet' })).toBeDefined()
+    // The draw read the store; it wrote nothing (state.set is refused while a draw runs).
+    expect(written).toEqual([])
+    await ui.unmount()
+  })
+
   test('a narrow pane keeps the money columns whole and truncates the agent name', async ($, on) => {
     mock.clock(on)
     on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))

@@ -238,24 +238,28 @@ function timeout($: EngineInterface, ms: number): Promise<undefined> {
 }
 
 /**
- * The `/router` mode in this session: the atom the pane and spawns read. modeMemo stands in
- * when the atom is empty (/clear wipes state); setMode keeps both in step. A hot reload
- * starts modeMemo over, and the store is read back once.
+ * The `/router` mode: the atom when it holds one, else what the store kept from an earlier
+ * session, else on. It only reads, so a ui.render hook may call it: state.set is refused
+ * while one draws, and /clear empties the atom before the pane is drawn again.
  */
-let modeMemo: Mode = 'on'
-let modeLoaded = false
-
 async function currentMode($: EngineInterface): Promise<Mode> {
-  if (!modeLoaded) {
-    modeLoaded = true
-    modeMemo = (await storedMode($)) ?? modeMemo
-  }
-  return (await read($, modeState)) ?? modeMemo
+  return (await read($, modeState)) ?? (await storedMode($)) ?? 'on'
+}
+
+/**
+ * currentMode, and the atom filled when it was empty so the pane reads it from then on.
+ * For the hooks that run outside a draw (session.start, command.run, agent.spawn,
+ * turn.step, session.end), never a ui.render hook.
+ */
+async function loadMode($: EngineInterface): Promise<Mode> {
+  const held = await read($, modeState)
+  if (held !== undefined) return held
+  const mode = (await storedMode($)) ?? 'on'
+  await update($, modeState, () => mode)
+  return mode
 }
 
 async function setMode($: EngineInterface, next: Mode) {
-  modeLoaded = true
-  modeMemo = next
   await update($, modeState, () => next)
 }
 
@@ -343,7 +347,7 @@ export const register: Register = (on, options) => {
   const spawnRows = new Map<string, SpawnRow>()
 
   on('session.start', async ($, e, next) => {
-    const mode = await currentMode($)
+    const mode = await loadMode($)
     if (mode !== 'on') $.ui.status(modeLabel(mode))
     for (const role of ROLES) {
       try {
@@ -369,12 +373,13 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'router' }, async ($, e) => {
     const arg = e.args.trim().toLowerCase()
+    const mode = await loadMode($)
     if (arg === 'reset') {
       await update($, ledger, () => EMPTY)
-      $.ui.status(modeLabel(await currentMode($)))
+      $.ui.status(modeLabel(mode))
       return { text: 'Model router bill cleared.' }
     }
-    if (arg === 'status') return { text: `Model router ${modeText(await currentMode($))}.` }
+    if (arg === 'status') return { text: `Model router ${modeText(mode)}.` }
     const picked = parseMode(arg)
     if (picked) {
       await setMode($, picked)
@@ -405,7 +410,7 @@ export const register: Register = (on, options) => {
 
   // 1. Haiku reads the task and sorts it. 2. The router sets the model.
   on('agent.spawn', async ($, e, next) => {
-    const mode = await currentMode($)
+    const mode = await loadMode($)
     await loadTypeModels($, typeModels)
     const callSetEffort = callEffort.delete(e.tool_use_id)
     const role = roleOf(e.subagentType)
@@ -558,6 +563,7 @@ export const register: Register = (on, options) => {
 
   // 3. Effort, lowered for easy tiers. 4. The bill: every model request, priced on the model that answered it.
   on('turn.step', async function* ($, e, next) {
+    await loadMode($) // the first hook after /clear with a prompt: the pane reads the mode again
     let request = e
     if (effortByTier && e.agentId && e.effort !== undefined) {
       try {
@@ -614,7 +620,7 @@ export const register: Register = (on, options) => {
   // /clear starts a new session with an empty bill, so the totals go. Kept to one call:
   // session.end shares a short bound. spawnRows stays, for agents still running.
   on('session.end', async ($, e, next) => {
-    if (e.reason === 'clear') $.ui.status(modeLabel(await currentMode($)))
+    if (e.reason === 'clear') $.ui.status(modeLabel(await loadMode($)))
     return next(e)
   })
 
