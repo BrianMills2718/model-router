@@ -35,6 +35,8 @@ export type AgentRow = {
   /** USD at the price of the model that actually answered each step. */
   cost: number
   startedAt: number
+  /** When the agent last finished; absent while it runs. The band above the prompt fades it out after this. */
+  finishedAt?: number
 }
 
 export type RouterLedger = {
@@ -46,6 +48,6 @@ export type RouterLedger = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'model-router': { ledger: RouterLedger }
+    'model-router': { ledger: RouterLedger; mode: 'on' | 'off' | 'haiku' | 'sonnet' | 'opus' | undefined }
   }
 }

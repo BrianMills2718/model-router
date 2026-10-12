@@ -1,3 +1,9 @@
+/**
+ * The model the roles are registered with: what one runs on when the router leaves it
+ * alone, so the bill compares a routed role against it.
+ */
+export const ROLE_MODEL = 'sonnet'
+
 /** The four roles the router adds. Their model is decided per task at spawn time. */
 export const ROLES = [
   {
