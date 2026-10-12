@@ -532,13 +532,13 @@ function answerSteps(on: any, model: string) {
   })
 }
 
-function mountPane($: any) {
+function mountPane($: any, bodyColumns = 70) {
   return $.ui.mount({
     plugin: 'model-router',
     surface: 'terminal',
     component: 'Pane',
     requestId: 'model-router',
-    props: { title: 'Model router', isFocused: false, bodyColumns: 70, placement: 'dock' } as never,
+    props: { title: 'Model router', isFocused: false, bodyColumns, placement: 'dock' } as never,
   })
 }
 
@@ -596,6 +596,36 @@ describe('bill', () => {
       await ui.find({ type: 'Text', text: 'No subagents yet. Ask Claude to use an agent and it shows up here.' }),
     ).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Agent$/ })).toBe(undefined)
+    await ui.unmount()
+  })
+
+  test('a narrow pane keeps the money columns whole and truncates the agent name', async ($, on) => {
+    mock.clock(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'n1' }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.agent.spawn(spawnInput({ description: 'rename every fooBar reference across the whole monorepo' }))
+    await step($, 'n1', undefined)
+    const ui = await mountPane($, 40)
+    // Sonnet 5.5 $0.014 unrouted, Haiku 5.5 $0.0007 routed plus $0.006 for the classifier: 52% saved
+    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01\s+saved 52%$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^\$0\.01$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^<\$0\.01$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Cost$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Model$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Tier$/ })).toBeDefined()
+    // the agent name is cut with an ellipsis, not the money columns
+    expect(await ui.find({ type: 'Text', text: /…$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'rename every fooBar reference across the whole monorepo' })).toBe(undefined)
+    // the pane fits the 40 columns (2 of them the gutter), each row adds up to the pane, and only Agent is flexible
+    const pane = await ui.drawn() as any
+    const table = pane.children.find((c: any) => c.type === 'Box' && c.children?.some((r: any) => r.props?.flexDirection === 'row'))
+    expect(pane.props.width).toBeLessThanOrEqual(40 - 2)
+    for (const row of table.children.filter((r: any) => r.props?.flexDirection === 'row')) {
+      expect(row.children.reduce((sum: number, cell: any) => sum + cell.props.width, 0)).toBe(pane.props.width)
+      for (const cell of row.children.slice(1)) expect(cell.props.flexShrink).toBe(0)
+    }
     await ui.unmount()
   })
 

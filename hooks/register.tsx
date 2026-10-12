@@ -152,6 +152,15 @@ async function finishAgent($: EngineInterface, id: string, spawnRows: ReadonlyMa
   if (finished) $.clock.after(BAND_FADE_MS, () => $.ui.invalidate('ui.render'))
 }
 
+/** The pane's fixed column widths; Agent takes what is left of the pane. */
+const TIER_WIDTH = 8
+const MODEL_WIDTH = 8
+const COST_WIDTH = 8
+const BASE_WIDTH = 10
+const FIXED_WIDTH = TIER_WIDTH + MODEL_WIDTH + COST_WIDTH + BASE_WIDTH
+/** The narrowest Agent column: a few characters and the ellipsis. */
+const AGENT_MIN = 4
+
 /** Tier word for the pane: `!` when the risk floor raised it, `↓` when rate limits lowered it. */
 function tierLabel(r: AgentRow): string {
   if (!r.tier || r.via === 'unrouted') return '-'
@@ -626,12 +635,12 @@ export const register: Register = (on, options) => {
     const { Box, Text } = $.ui.resolve(e)
     const l = await read($, ledger)
     const t = totals(l, baseline)
-    const width = Math.max(42, (e.props.bodyColumns ?? 60) - 2)
+    const width = Math.max(FIXED_WIDTH + AGENT_MIN, (e.props.bodyColumns ?? 60) - 2)
     const rows = Object.values(l.rows).sort((a, b) => b.startedAt - a.startedAt)
     const agents = rows.filter(r => r.id !== 'main').length
     const room = Math.max(3, (e.viewport?.rows ?? 30) - 14)
     const shown = rows.slice(0, room)
-    const agentWidth = Math.max(8, width - 34)
+    const agentWidth = width - FIXED_WIDTH
     const baseHead = baseline === 'unrouted' ? 'Unrouted' : `On ${shortModel(baseline)}`
     const hasRisky = shown.some(r => tierLabel(r).endsWith('!'))
     const hasPressure = shown.some(r => tierLabel(r).endsWith('↓'))
@@ -642,16 +651,16 @@ export const register: Register = (on, options) => {
         <Box width={agentWidth}>
           <Text wrap="truncate" dimColor={dim}>{fit(agent, agentWidth)}</Text>
         </Box>
-        <Box width={8}>
+        <Box width={TIER_WIDTH} flexShrink={0}>
           <Text wrap="truncate" dimColor={dim}>{tier}</Text>
         </Box>
-        <Box width={8}>
+        <Box width={MODEL_WIDTH} flexShrink={0}>
           <Text wrap="truncate" dimColor={dim}>{model}</Text>
         </Box>
-        <Box width={8} justifyContent="flex-end">
+        <Box width={COST_WIDTH} flexShrink={0} justifyContent="flex-end">
           <Text wrap="truncate" dimColor={dim}>{cost}</Text>
         </Box>
-        <Box width={10} justifyContent="flex-end">
+        <Box width={BASE_WIDTH} flexShrink={0} justifyContent="flex-end">
           <Text wrap="truncate" dimColor={dim}>{base}</Text>
         </Box>
       </Box>
