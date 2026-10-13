@@ -1,11 +1,13 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderElement } from 'claude-code'
 
-import type { AgentRow, RouterLedger, Tier, Tokens } from '../types'
+import type { AgentRow, RouterLedger, RouterMeter, RouterView, Tier, Tokens } from '../types'
 import { ROLES, ROLE_MODEL } from './lib/agents'
 import {
+  CLASSIFIER_EFFORT,
   CLASSIFIER_MODEL,
   CLASSIFIER_SYSTEM,
+  TIER_WORD,
   EFFORT_CAP,
   FORCED_TIER,
   MODEL_FOR_TIER,
@@ -17,6 +19,8 @@ import {
   capEffort,
   classifierPrompt,
   costOf,
+  explainTier,
+  clockText,
   fallbackTier,
   familyOf,
   fullestWindow,
@@ -30,6 +34,8 @@ import {
   tierOfModel,
   tokensFromUsage,
   usd,
+  windowGauge,
+  type CacheTtl,
   type Family,
   type Effort,
   type Mode,
@@ -40,8 +46,11 @@ const EMPTY: RouterLedger = { rows: {}, classifierCost: 0, routed: 0 }
 const ledger = atom({ plugin: 'model-router', key: 'ledger' } as const, EMPTY)
 /** The `/router` mode in this session; the pane redraws when it is written. */
 const modeState = atom({ plugin: 'model-router', key: 'mode' } as const, undefined)
-
-const TIER_WORD: Record<Tier, string> = { simple: 'easy', standard: 'normal', hard: 'hard', long: 'long' }
+const EMPTY_METER: RouterMeter = { limits: [] }
+/** What the engine measures for the session (its cost, the rate-limit windows) and the turn receipt. */
+const meter = atom({ plugin: 'model-router', key: 'meter' } as const, EMPTY_METER)
+/** Which pane row is expanded. */
+const view = atom({ plugin: 'model-router', key: 'view' } as const, {} as RouterView)
 
 /** The classifier's budget. A spawn waits on it, so a slow answer costs more than a wrong tier. */
 const CLASSIFY_MS = 3000
@@ -70,13 +79,18 @@ function shortModel(model: string | undefined): string {
   return { haiku4: 'Haiku4', haiku5: 'Haiku', sonnet: 'Sonnet', opus: 'Opus', fable: 'Fable' }[familyOf(model)]
 }
 
+/** The main conversation's cache lives an hour; a subagent's five minutes. */
+function ttlOf(id: string): CacheTtl {
+  return id === 'main' ? '1h' : '5m'
+}
+
 /**
  * The same tokens on the baseline. Priced on the row's summed tokens, so a fixed baseline
  * or a later change of the setting reprices the whole bill.
  */
 function baselineCost(r: AgentRow, baseline: Baseline): number {
   const family = baseline === 'unrouted' ? familyOf(r.baselineModel ?? r.model) : baseline
-  return costOf(r.tokens, family)
+  return costOf(r.tokens, family, ttlOf(r.id))
 }
 
 function totals(l: RouterLedger, baseline: Baseline) {
@@ -154,14 +168,42 @@ async function finishAgent($: EngineInterface, id: string, spawnRows: ReadonlyMa
   if (finished) $.clock.after(BAND_FADE_MS, () => $.ui.invalidate('ui.render'))
 }
 
+/** Statuses after which an agent will not step again on its own. */
+const ENDED = new Set(['completed', 'failed', 'killed', 'idle'])
+/** How old a row must be before a missing list entry counts as finished: a new spawn may not be listed yet. */
+const RECONCILE_AFTER_MS = 10_000
+
+/**
+ * Finishes the rows of agents the engine no longer runs, for an agent whose finish events
+ * were missed (it ended before this module loaded, or was killed): its band line would
+ * otherwise stay up for the rest of the session.
+ */
+async function reconcileAgents($: EngineInterface, spawnRows: ReadonlyMap<string, SpawnRow>) {
+  const l = await read($, ledger)
+  const now = await $.clock.now()
+  const open = Object.values(l.rows).filter(
+    r => r.id !== 'main' && r.finishedAt === undefined && now - r.startedAt > RECONCILE_AFTER_MS,
+  )
+  if (open.length === 0) return
+  const status = new Map((await $.agent.list()).map(a => [a.id, a.status as string]))
+  for (const r of open) {
+    const s = status.get(r.id)
+    if (s === undefined || ENDED.has(s)) await finishAgent($, r.id, spawnRows)
+  }
+}
+
 /** The pane's fixed column widths; Agent takes what is left of the pane. */
 const TIER_WIDTH = 8
 const MODEL_WIDTH = 8
+const TIME_WIDTH = 6
 const COST_WIDTH = 8
 const BASE_WIDTH = 10
-const FIXED_WIDTH = TIER_WIDTH + MODEL_WIDTH + COST_WIDTH + BASE_WIDTH
-/** The narrowest Agent column: a few characters and the ellipsis. */
+/** The columns that always show; Time joins them when the Agent column can spare it. */
+const MIN_FIXED = TIER_WIDTH + MODEL_WIDTH + COST_WIDTH + BASE_WIDTH
+/** The narrowest Agent column: a status mark and the ellipsis. */
 const AGENT_MIN = 4
+/** The Agent column the Time column must leave before it shows. */
+const AGENT_WIDE = 16
 
 /** Tier word for the pane: `!` when the risk floor raised it, `↓` when rate limits lowered it. */
 function tierLabel(r: AgentRow): string {
@@ -376,6 +418,8 @@ export const register: Register = (on, options) => {
     const mode = await loadMode($)
     if (arg === 'reset') {
       await update($, ledger, () => EMPTY)
+      await update($, meter, m => ({ ...(m ?? EMPTY_METER), turn: undefined, lastTurn: undefined }))
+      await update($, view, () => ({}))
       $.ui.status(modeLabel(mode))
       return { text: 'Model router bill cleared.' }
     }
@@ -429,6 +473,16 @@ export const register: Register = (on, options) => {
           via: 'unrouted',
           model: result.model,
           baselineModel: result.model,
+          why:
+            mode === 'off'
+              ? 'not routed: /router off'
+              : e.fork
+                ? 'not routed: a fork keeps its parent\'s model'
+                : e.workflow
+                  ? 'not routed: a workflow agent\'s model cannot be changed'
+                  : e.isTeammate
+                    ? 'not routed: teammates keep their team\'s model'
+                    : 'not routed: Route every subagent is off',
         }, false, spawnRows)
         // What this type runs on by itself: a fork or teammate takes its parent's, a
         // workflow agent or a named model is the call's choice, not the type's. The
@@ -445,15 +499,18 @@ export const register: Register = (on, options) => {
     let model: string | undefined
     let risky = false
     let pressure: number | undefined
+    let why: string
 
     if (respectExplicit && e.model) {
       via = 'explicit'
       model = e.model
       tier = tierOfModel(e.model)
+      why = `kept: the Agent call named ${shortModel(e.model)}`
     } else if (mode !== 'on') {
       via = 'forced'
       tier = FORCED_TIER[mode]
       model = MODEL_FOR_TIER[tier]
+      why = `/router ${mode}: every routed subagent on ${shortModel(model)}`
     } else {
       let picked: Tier | undefined
       try {
@@ -467,6 +524,7 @@ export const register: Register = (on, options) => {
               prompt: e.prompt,
             }),
             maxTokens: 8,
+            effort: CLASSIFIER_EFFORT,
             timeoutMs: CLASSIFY_MS,
           },
           { signal: next.signal },
@@ -517,6 +575,7 @@ export const register: Register = (on, options) => {
         }
       }
       model = MODEL_FOR_TIER[tier]
+      why = explainTier({ source: via, asked, final: tier, role, risky, allowLong, pressure })
     }
 
     // Effort is set per request in turn.step; here the router only decides the cap.
@@ -524,6 +583,7 @@ export const register: Register = (on, options) => {
       effortByTier && via !== 'explicit' && via !== 'forced' && !callSetEffort
         ? EFFORT_CAP[tier]
         : undefined
+    if (effort) why += ` · effort ≤ ${effort}`
 
     // Held in `starting` until the cap is known: the agent's first request can arrive
     // before `next` answers and must wait for its effort cap.
@@ -541,6 +601,7 @@ export const register: Register = (on, options) => {
         effort,
         risky: risky || undefined,
         pressure,
+        why,
         // A model Claude named would have run anyway. A router role runs on its registered
         // model; another type on its own model when it was seen running unrouted (a built-in
         // such as Explore), else on the parent's it inherits.
@@ -578,7 +639,7 @@ export const register: Register = (on, options) => {
     const usage = result.usage
     const t: Tokens = tokensFromUsage(usage)
     const id = e.agentId ?? 'main'
-    const actual = costOf(t, familyOf(usage.model))
+    const actual = costOf(t, familyOf(usage.model), ttlOf(id))
     const now = await $.clock.now()
     await update($, ledger, l => {
       const { row, routed } = rowFor(l, id, now, spawnRows)
@@ -603,11 +664,71 @@ export const register: Register = (on, options) => {
     return result
   })
 
+  // The main conversation's turn: the bill as it stood when the turn began, for the receipt.
+  on('turn.start', async ($, e, next) => {
+    try {
+      const t = totals(await read($, ledger), baseline)
+      const agents = Object.keys((await read($, ledger)).rows).filter(id => id !== 'main').length
+      const startedAt = await $.clock.now()
+      await update($, meter, m => ({ ...(m ?? EMPTY_METER), turn: { startedAt, cost: t.cost, base: t.base, agents } }))
+    } catch {
+      // the receipt is a side job
+    }
+    return next(e)
+  })
+
   // A subagent's run ends with its own turn.complete; SubagentStop backs it up. Either
-  // marks the row finished (once) and brings the status line up to date at once.
+  // marks the row finished (once) and brings the status line up to date at once. The
+  // main conversation's turn writes the receipt and finishes agents the engine has dropped.
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId) await finishAgent($, e.agentId, spawnRows)
+    if (e.agentId) {
+      await finishAgent($, e.agentId, spawnRows)
+    } else {
+      try {
+        const l = await read($, ledger)
+        const t = totals(l, baseline)
+        const agents = Object.keys(l.rows).filter(id => id !== 'main').length
+        const now = await $.clock.now()
+        await update($, meter, m => {
+          const mark = (m ?? EMPTY_METER).turn
+          if (!mark) return m ?? EMPTY_METER
+          const cost = t.cost - mark.cost
+          return {
+            ...(m ?? EMPTY_METER),
+            turn: undefined,
+            lastTurn: { ms: now - mark.startedAt, agents: agents - mark.agents, cost, saved: t.base - mark.base - cost },
+          }
+        })
+        await reconcileAgents($, spawnRows)
+        // session.measure can trail the turn; read the engine's figures once more as it ends.
+        const u = await $.session.usage()
+        await update($, meter, m => ({
+          ...(m ?? EMPTY_METER),
+          limits: u.rateLimits.map(w => ({ kind: w.kind, percentUsed: w.percentUsed, resetsAt: w.resetsAt })),
+          engineCost: u.cost?.usd ?? (m ?? EMPTY_METER).engineCost,
+        }))
+      } catch {
+        // the receipt is a side job
+      }
+    }
     await refreshStatus($, baseline, baselineName, await currentMode($), pressureAt)
+    return next(e)
+  })
+
+  // The engine's own figures: the rate-limit windows for the pane's gauges, and the
+  // session's cost to set beside the bill.
+  on('session.measure', async ($, e, next) => {
+    if (e.changed.includes('rateLimits') || e.changed.includes('cost')) {
+      try {
+        await update($, meter, m => ({
+          ...(m ?? EMPTY_METER),
+          limits: e.rateLimits.map(l => ({ kind: l.kind, percentUsed: l.percentUsed, resetsAt: l.resetsAt })),
+          engineCost: e.cost?.usd ?? (m ?? EMPTY_METER).engineCost,
+        }))
+      } catch {
+        // a reading is a side job
+      }
+    }
     return next(e)
   })
 
@@ -648,32 +769,65 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
+    const els = $.ui.resolve(e)
+    const { Box, Text, Button } = els
+    const hasClient = 'Client' in els
     const mode = await currentMode($)
     const l = await read($, ledger)
+    const m = (await read($, meter)) ?? EMPTY_METER
+    const expanded = ((await read($, view)) ?? {}).expanded
+    const now = await $.clock.now()
     const t = totals(l, baseline)
-    const width = Math.max(FIXED_WIDTH + AGENT_MIN, (e.props.bodyColumns ?? 60) - 2)
+    const width = Math.max(MIN_FIXED + AGENT_MIN, (e.props.bodyColumns ?? 60) - 2)
+    // The Time column goes first when the pane is narrow: the money columns stay whole.
+    const withTime = width >= MIN_FIXED + TIME_WIDTH + AGENT_WIDE
+    const fixed = MIN_FIXED + (withTime ? TIME_WIDTH : 0)
     const rows = Object.values(l.rows).sort((a, b) => b.startedAt - a.startedAt)
     const agents = rows.filter(r => r.id !== 'main').length
-    const room = Math.max(3, (e.viewport?.rows ?? 30) - 14)
+    const room = Math.max(3, (e.viewport?.rows ?? 30) - 18)
     const shown = rows.slice(0, room)
-    const agentWidth = width - FIXED_WIDTH
+    const agentWidth = width - fixed
     const baseHead = baseline === 'unrouted' ? 'Unrouted' : `On ${shortModel(baseline)}`
     const hasRisky = shown.some(r => tierLabel(r).endsWith('!'))
     const hasPressure = shown.some(r => tierLabel(r).endsWith('↓'))
+    const tight = pressureAt !== undefined && m.limits.some(w => w.percentUsed >= pressureAt)
+    const rowsCost = Object.values(l.rows).reduce((sum, r) => sum + r.cost, 0)
 
-    // One fixed-width Box per cell, each a single Text; the money columns right-aligned.
-    const cells = (agent: string, tier: string, model: string, cost: string, base: string, dim: boolean) => (
+    const toggle = (id: string) => () =>
+      update($, view, v => ({ expanded: (v ?? {}).expanded === id ? undefined : id }))
+
+    const clock = (r: AgentRow) =>
+      r.id === 'main' ? (
+        <Text dimColor>–</Text>
+      ) : hasClient && r.finishedAt === undefined ? (
+        <els.Client key={`clock-${r.id}`} module="./clock.tsx" props={{ since: r.startedAt, now, endAt: null }} />
+      ) : (
+        <Text dimColor>{clockText((r.finishedAt ?? now) - r.startedAt)}</Text>
+      )
+
+    // One fixed-width Box per cell; the money columns right-aligned.
+    const line = (
+      agent: RenderElement | string,
+      tier: string,
+      model: string,
+      time: RenderElement | string,
+      cost: string,
+      base: string,
+      dim: boolean,
+    ) => (
       <Box flexDirection="row">
-        <Box width={agentWidth}>
-          <Text wrap="truncate" dimColor={dim}>{fit(agent, agentWidth)}</Text>
-        </Box>
+        <Box width={agentWidth}>{typeof agent === 'string' ? <Text wrap="truncate" dimColor={dim}>{agent}</Text> : agent}</Box>
         <Box width={TIER_WIDTH} flexShrink={0}>
           <Text wrap="truncate" dimColor={dim}>{tier}</Text>
         </Box>
         <Box width={MODEL_WIDTH} flexShrink={0}>
           <Text wrap="truncate" dimColor={dim}>{model}</Text>
         </Box>
+        {withTime && (
+          <Box width={TIME_WIDTH} flexShrink={0} justifyContent="flex-end">
+            {typeof time === 'string' ? <Text dimColor>{time}</Text> : time}
+          </Box>
+        )}
         <Box width={COST_WIDTH} flexShrink={0} justifyContent="flex-end">
           <Text wrap="truncate" dimColor={dim}>{cost}</Text>
         </Box>
@@ -683,36 +837,82 @@ export const register: Register = (on, options) => {
       </Box>
     )
 
+    // The agent cell: ✓ finished or ◐ running, then the name, pressable by its number.
+    const agentCell = (r: AgentRow, i: number) => {
+      const dim = r.via === 'unrouted'
+      const mark = r.id === 'main' ? '  ' : r.finishedAt === undefined ? '◐ ' : '✓ '
+      const key = i < 9 && r.id !== 'main' ? String(i + 1) : undefined
+      const name = fit(`${key ? `${key} ` : ''}${r.label}`, agentWidth - 2)
+      return (
+        <Box flexDirection="row">
+          <Text dimColor={r.finishedAt !== undefined || dim}>{mark}</Text>
+          {key ? (
+            <Button key={`row-${r.id}`} plain hotkey={key} label={name} dimColor={dim} onPress={toggle(r.id)} />
+          ) : (
+            <Text wrap="truncate" dimColor={dim}>{name}</Text>
+          )}
+        </Box>
+      )
+    }
+
+    let numbered = 0
     return (
       <Box flexDirection="column" width={width}>
         <Text bold>{`Model router · ${mode}`}</Text>
         {mode !== 'on' && <Text color="yellow">{`${modeLabel(mode)} (/router on to go back)`}</Text>}
         <Text>{`Spent ${usd(t.cost)}`}</Text>
-        <Text color={t.saved > 0 ? 'green' : undefined}>
-          {`${baseHead} ${usd(t.base)}` + savedText(t)}
-        </Text>
+        <Text color={t.saved > 0 ? 'green' : undefined}>{`${baseHead} ${usd(t.base)}` + savedText(t)}</Text>
+        {m.limits.length > 0 && (
+          <Text wrap="truncate" color={tight ? 'yellow' : undefined} dimColor={!tight}>
+            {m.limits.map(w => windowGauge(w, now)).join(' · ') + (tight && mode === 'on' ? ' · one tier down' : '')}
+          </Text>
+        )}
+        {m.lastTurn && (
+          <Text wrap="truncate" dimColor>
+            {`last turn ${clockText(m.lastTurn.ms)} · ${m.lastTurn.agents} agent${m.lastTurn.agents === 1 ? '' : 's'} · +${usd(m.lastTurn.cost)}` +
+              (m.lastTurn.saved > 0.005 ? ` · saved ${usd(m.lastTurn.saved)}` : '')}
+          </Text>
+        )}
         <Text> </Text>
         {agents === 0 ? (
           <Text dimColor wrap="wrap">No subagents yet. Ask Claude to use an agent and it shows up here.</Text>
         ) : (
           <Box flexDirection="column">
-            {cells('Agent', 'Tier', 'Model', 'Cost', baseHead, true)}
+            {line('  Agent', 'Tier', 'Model', 'Time', 'Cost', baseHead, true)}
             <Text dimColor>{'─'.repeat(width)}</Text>
-            {shown.map(r =>
-              cells(
-                r.label,
-                tierLabel(r),
-                shortModel(r.model),
-                usd(r.cost),
-                usd(baselineCost(r, baseline)),
-                r.via === 'unrouted',
-              ),
-            )}
+            {shown.map(r => {
+              const i = r.id === 'main' ? -1 : numbered++
+              const open = expanded === r.id && r.why
+              return (
+                <Box flexDirection="column">
+                  {line(
+                    agentCell(r, i),
+                    tierLabel(r),
+                    shortModel(r.model),
+                    clock(r),
+                    usd(r.cost),
+                    usd(baselineCost(r, baseline)),
+                    r.via === 'unrouted',
+                  )}
+                  {open && (
+                    <Text wrap="wrap" color="cyan">
+                      {`    ${r.why}`}
+                    </Text>
+                  )}
+                </Box>
+              )
+            })}
             {rows.length > room && <Text dimColor>{`…${rows.length - room} more`}</Text>}
             <Text> </Text>
-            <Text dimColor>
+            <Text dimColor wrap="truncate">
               {`${agents} agent${agents === 1 ? '' : 's'} · ${l.routed} routed · classifier ${usd(l.classifierCost)}`}
             </Text>
+            {m.engineCost !== undefined && (
+              <Text dimColor wrap="truncate">
+                {`Claude Code's own total ${usd(m.engineCost)} · these rows ${usd(rowsCost)}`}
+              </Text>
+            )}
+            <Text dimColor wrap="truncate">Press an agent's number to see why it got its model.</Text>
             {hasRisky && <Text dimColor>! risky: sent to Opus at least</Text>}
             {hasPressure && <Text dimColor>↓ one tier lower for rate limits</Text>}
             <Text dimColor wrap="wrap">

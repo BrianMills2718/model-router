@@ -37,7 +37,30 @@ export type AgentRow = {
   startedAt: number
   /** When the agent last finished; absent while it runs. The band above the prompt fades it out after this. */
   finishedAt?: number
+  /** Why it got its model, in one line: what the classifier said and each rule that moved it. */
+  why?: string
 }
+
+/** One rate-limit window as the engine reports it. */
+export type LimitWindow = { kind: string; percentUsed: number; resetsAt?: string }
+
+/** The main conversation's turn now running: the bill as it stood when it began. */
+export type TurnMark = { startedAt: number; cost: number; base: number; agents: number }
+
+/** The last finished turn of the main conversation, for the pane's receipt line. */
+export type TurnReceipt = { ms: number; agents: number; cost: number; saved: number }
+
+/** What the engine measures for the whole session, and the turn receipt. */
+export type RouterMeter = {
+  /** Claude Code's own session cost: every priced response, the router's classifier calls not included. */
+  engineCost?: number
+  limits: LimitWindow[]
+  turn?: TurnMark
+  lastTurn?: TurnReceipt
+}
+
+/** The pane's view: which agent row is expanded to show why it got its model. */
+export type RouterView = { expanded?: string }
 
 export type RouterLedger = {
   rows: Record<string, AgentRow>
@@ -48,6 +71,11 @@ export type RouterLedger = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'model-router': { ledger: RouterLedger; mode: 'on' | 'off' | 'haiku' | 'sonnet' | 'opus' | undefined }
+    'model-router': {
+      ledger: RouterLedger
+      mode: 'on' | 'off' | 'haiku' | 'sonnet' | 'opus' | undefined
+      meter: RouterMeter
+      view: RouterView
+    }
   }
 }
