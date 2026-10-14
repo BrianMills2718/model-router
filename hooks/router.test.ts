@@ -5,6 +5,7 @@ import {
   capEffort,
   clampTier,
   costOf,
+  explainTier,
   familyOf,
   looksRisky,
   parseMode,
@@ -12,6 +13,7 @@ import {
   parseTier,
   routeTier,
   tierOfModel,
+  windowGauge,
 } from './lib/pricing'
 
 /** Billionths of a dollar, so float sums compare exactly. */
@@ -574,12 +576,12 @@ describe('bill', () => {
     await step($, 'a1', undefined)
 
     // 2k in + 1k out: Haiku 5.5 $0.0007, Sonnet 5.5 (the builder's registered model) $0.014;
-    // the Haiku 4.5 classifier call adds $0.006, so $0.0067 against $0.014 is 52% saved
+    // the Haiku 5.5 classifier call adds $0.0006, so $0.0013 against $0.014 is 91% saved
     const ui = await mountPane($)
     expect(await ui.find({ type: 'Text', text: 'Model router · on' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^Spent <\$0\.01$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01\s+saved 52%$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'rename fooBar' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Spent\s+<\$0\.01$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.01\s+saved 91%$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Button', text: 'rename fooBar' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^easy$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Haiku$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^1 agent · 1 routed · classifier <\$0\.01$/ })).toBeDefined()
@@ -634,8 +636,8 @@ describe('bill', () => {
     await $.agent.spawn(spawnInput({ description: 'rename every fooBar reference across the whole monorepo' }))
     await step($, 'n1', undefined)
     const ui = await mountPane($, 40)
-    // Sonnet 5.5 $0.014 unrouted, Haiku 5.5 $0.0007 routed plus $0.006 for the classifier: 52% saved
-    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01\s+saved 52%$/ })).toBeDefined()
+    // Sonnet 5.5 $0.014 unrouted, Haiku 5.5 $0.0007 routed plus $0.0006 for the classifier: 91% saved
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.01\s+saved 91%$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Unrouted$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.01$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^<\$0\.01$/ })).toBeDefined()
@@ -643,13 +645,16 @@ describe('bill', () => {
     expect(await ui.find({ type: 'Text', text: /^Model$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Tier$/ })).toBeDefined()
     // the agent name is cut with an ellipsis, not the money columns
-    expect(await ui.find({ type: 'Text', text: /…$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'rename every fooBar reference across the whole monorepo' })).toBe(undefined)
+    expect(await ui.find({ type: 'Button', text: /…$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Button', text: /whole monorepo/ })).toBe(undefined)
     // the pane fits the 40 columns (2 of them the gutter), each row adds up to the pane, and only Agent is flexible
     const pane = await ui.drawn() as any
     const table = pane.children.find((c: any) => c.type === 'Box' && c.children?.some((r: any) => r.props?.flexDirection === 'row'))
     expect(pane.props.width).toBeLessThanOrEqual(40 - 2)
-    for (const row of table.children.filter((r: any) => r.props?.flexDirection === 'row')) {
+    // table rows: the header directly, each agent's inside its own column Box
+    const rows = table.children.flatMap((r: any) => (r.props?.flexDirection === 'row' ? [r] : (r.children ?? []).filter((c: any) => c.props?.flexDirection === 'row')))
+    expect(rows.length).toBeGreaterThan(1)
+    for (const row of rows) {
       expect(row.children.reduce((sum: number, cell: any) => sum + cell.props.width, 0)).toBe(pane.props.width)
       for (const cell of row.children.slice(1)) expect(cell.props.flexShrink).toBe(0)
     }
@@ -681,7 +686,7 @@ describe('baseline for built-in agents', () => {
     await step($, 'x1', undefined)
     const ui = await mountPane($)
     // Sonnet 5.5 $0.014 against Haiku 5.5 $0.0007, not the parent's Opus $0.028
-    expect(await ui.find({ type: 'Text', text: /^Unrouted <\$0\.01\s+\d+% more$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+<\$0\.01\s+\d+% more$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
   })
@@ -699,7 +704,7 @@ describe('baseline for built-in agents', () => {
     await $.agent.spawn(spawnInput({ subagentType: 'Explore', description: 'find callees' }))
     await step($, 'y2', undefined)
     const ui = await mountPane($)
-    expect(await ui.find({ type: 'Text', text: /^Unrouted <\$0\.01/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+<\$0\.01/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
   })
@@ -717,14 +722,14 @@ describe('baseline for router roles', () => {
     let ui = await mountPane($)
     // the builder's step: Sonnet $0.014 against Sonnet $0.014; on Opus it would be $0.028
     expect(await ui.findAll({ type: 'Text', text: /^\$0\.01$/ })).toHaveLength(2)
-    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.01/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
 
     await $.agent.spawn(spawnInput({ subagentType: 'model-router:fixer', description: 'fix login' }))
     await step($, 'b2', undefined)
     ui = await mountPane($)
-    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.03/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.03/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
   })
@@ -798,7 +803,7 @@ describe('/clear', () => {
     await $.command.run({ command: 'router', args: 'reset' } as never)
     await step($, 'a1', undefined)
     const ui = await mountPane($)
-    expect(await ui.find({ type: 'Text', text: 'rename fooBar' })).toBeDefined()
+    expect(await ui.find({ type: 'Button', text: 'rename fooBar' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^easy$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'subagent' })).toBe(undefined)
     expect(await ui.find({ type: 'Text', text: /1 routed/ })).toBeDefined()
@@ -849,4 +854,206 @@ describe('status line', () => {
     expect(seen.at(-1)).toMatch(/\(\d+% more\)/)
     expect(seen.at(-1)).not.toContain('saved')
   })
+})
+
+describe('0.6.0 rules', () => {
+  test('the main conversation pays for hour-long cache writes, subagents for five minutes', async () => {
+    const t = { input: 0, output: 0, cacheRead: 0, cacheWrite: 1e6 }
+    expect(nano(costOf(t, 'sonnet'))).toBe(2_500_000_000)
+    expect(nano(costOf(t, 'sonnet', '1h'))).toBe(4_000_000_000)
+  })
+
+  test('rate-limit pressure keeps builders and fixers on Sonnet or above', async () => {
+    expect(routeTier('standard', 'builder', false, { underPressure: true })).toBe('standard')
+    expect(routeTier('hard', 'builder', false, { underPressure: true })).toBe('standard')
+    expect(routeTier('standard', 'fixer', false, { underPressure: true })).toBe('standard')
+    // easy work the classifier already put on Haiku stays there
+    expect(routeTier('simple', 'builder', false, { underPressure: true })).toBe('simple')
+    expect(routeTier('standard', 'runner', false, { underPressure: true })).toBe('simple')
+    expect(routeTier('standard', undefined, false, { underPressure: true })).toBe('simple')
+  })
+
+  test('each agent says why it got its tier', async () => {
+    const base = { role: 'builder', risky: false, allowLong: false }
+    expect(explainTier({ ...base, source: 'haiku', asked: 'standard', final: 'standard' })).toBe('classifier: normal')
+    expect(explainTier({ ...base, source: 'haiku', asked: 'long', final: 'standard', role: 'runner' })).toBe(
+      'classifier: long → normal (runner capped at normal, long work not asked for)',
+    )
+    expect(explainTier({ ...base, source: 'haiku', asked: 'simple', final: 'hard', role: 'runner', risky: true })).toBe(
+      'classifier: easy risky → hard (risk floor)',
+    )
+    expect(explainTier({ ...base, source: 'fallback', asked: 'standard', final: 'simple', role: undefined, pressure: 82 })).toBe(
+      'no classifier answer, agent default: normal → easy (limits 82%: one tier down)',
+    )
+  })
+
+  test('rate-limit gauges', async () => {
+    const now = Date.parse('2026-10-13T10:00:00Z')
+    expect(windowGauge({ percentUsed: 82, resetsAt: '2026-10-13T11:20:00Z' }, now)).toBe('████░ 82%  resets in 1h20')
+    expect(windowGauge({ percentUsed: 13 }, now)).toBe('█░░░░ 13%')
+    expect(windowGauge({ percentUsed: 5, resetsAt: '2026-10-13T10:42:00Z' }, now)).toBe('░░░░░ 5%  resets in 42m')
+    expect(windowGauge({ percentUsed: 5, resetsAt: '2026-10-13T09:00:00Z' }, now)).toBe('░░░░░ 5%')
+    // a weekly window reads in days, not 144 hours
+    expect(windowGauge({ percentUsed: 11, resetsAt: '2026-10-19T11:00:00Z' }, now)).toBe('█░░░░ 11%  resets in 6d 1h')
+  })
+})
+
+function mountOn($: any, surface: string, bodyColumns: number) {
+  return $.ui.mount({
+    plugin: 'model-router',
+    surface,
+    component: 'Pane',
+    requestId: 'model-router',
+    props: { title: 'Model router', isFocused: false, bodyColumns, placement: 'dock' } as never,
+  })
+}
+
+describe('0.6.0 pane', () => {
+  test('pressing an agent\'s number shows why it got its model', async ($, on) => {
+    mock.clock(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.agent.spawn(spawnInput())
+    await step($, 'a1', undefined)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /classifier: easy/ })).toBe(undefined)
+    // the surface prints the hotkey itself: the label is the name, the number its hotkey
+    const row = (await ui.find({ key: 'row-a1' })) as any
+    expect(row.props.label).toBe('rename fooBar')
+    expect(row.props.hotkey).toBe('1')
+    await ui.press({ key: 'row-a1' } as never)
+    expect(await ui.find({ type: 'Text', text: /^\s+classifier: easy · effort ≤ low$/ })).toBeDefined()
+    await ui.press({ key: 'row-a1' } as never)
+    expect(await ui.find({ type: 'Text', text: /classifier: easy/ })).toBe(undefined)
+    await ui.unmount()
+  })
+
+  test('a running agent shows ◐, a finished one ✓', async ($, on) => {
+    mock.clock(on)
+    engineBeneath(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.agent.spawn(spawnInput())
+    await step($, 'a1', undefined)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: '◐ ' })).toBeDefined()
+    await complete($, 'a1')
+    expect(await ui.find({ type: 'Text', text: '✓ ' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '◐ ' })).toBe(undefined)
+    await ui.unmount()
+  })
+
+  test('the last turn\'s receipt: time, agents, cost and what routing saved', async ($, on) => {
+    mock.clock(on)
+    engineBeneath(on)
+    on('turn.start', async (_$: unknown, e: any) => ({ turnId: e.turnId }))
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.turn.start({ text: 'rename it', turnId: 'm1' })
+    await $.agent.spawn(spawnInput())
+    await step($, 'a1', undefined)
+    await $.turn.complete({ turnId: 'm1', answer: '', durationMs: 1, isAborted: false, reason: 'answer' } as never)
+    const ui = await mountPane($)
+    // Haiku 5.5 $0.0007 and the classifier $0.0006 against Sonnet's $0.014: $0.0127 saved
+    expect(await ui.find({ type: 'Text', text: /^Last turn\s+0:00 · 1 agent · \+<\$0\.01 · saved \$0\.01$/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('an agent the engine no longer runs is finished at the end of the main turn', async ($, on) => {
+    const clock = mock.clock(on)
+    engineBeneath(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'gone' }))
+    on('agent.list', async () => ({ value: [] }))
+    answerSteps(on, 'claude-haiku-5-5')
+    await $.agent.spawn(spawnInput())
+    await step($, 'gone', undefined)
+    await clock.advance(11_000)
+    // the main conversation's turn ends; the agent's own finish never came
+    await $.turn.complete({ turnId: 'm1', answer: '', durationMs: 1, isAborted: false, reason: 'answer' } as never)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: '✓ ' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('with no agents yet, the pane still shows the rate-limit gauges and Claude Code\'s total', async ($, on) => {
+    mock.clock(on, { now: Date.parse('2026-10-13T10:00:00Z') })
+    on('session.measure', async (_$: unknown, e: any) => ({ changed: e.changed }))
+    await $.session.measure({
+      context: {} as never,
+      rateLimits: [
+        { kind: 'five_hour', percentUsed: 82, resetsAt: '2026-10-13T11:20:00Z' },
+        { kind: 'seven_day', percentUsed: 13 },
+      ],
+      cost: { usd: 0.42 },
+      changed: ['rateLimits', 'cost'],
+    } as never)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: 'No subagents yet. Ask Claude to use an agent and it shows up here.' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^5h limit\s+████░ 82%  resets in 1h20  · one tier down$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^7d limit\s+█░░░░ 13%$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Claude Code\s+\$0\.42 total · this bill \$0 before the classifier$/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('on a subscription Claude Code reports no cost, so there is nothing to compare', async ($, on) => {
+    mock.clock(on)
+    on('session.measure', async (_$: unknown, e: any) => ({ changed: e.changed }))
+    await $.session.measure({ context: {} as never, rateLimits: [], cost: { usd: 0 }, changed: ['cost'] } as never)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^Claude Code/ })).toBe(undefined)
+    await ui.unmount()
+  })
+
+  test('the main conversation\'s cache writes are billed at the hour rate', async ($, on) => {
+    mock.clock(on)
+    on('turn.step', async function* (_$: unknown, e: any) {
+      return {
+        turnId: e.turnId,
+        index: e.index,
+        answer: 'done',
+        toolUses: [],
+        stopReason: 'end_turn' as never,
+        usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 1e6, model: 'claude-sonnet-5-5' },
+      }
+    })
+    const s = $.turn.step({ turnId: 'm1', index: 0, model: 'claude-sonnet-5-5', messageCount: 1 })
+    for await (const _ of s) {
+      // drain
+    }
+    await s.result
+    const ui = await mountPane($)
+    // 1M cache-write tokens on Sonnet 5.5: $4.00 for an hour, not $2.50 for five minutes
+    expect(await ui.find({ type: 'Text', text: /^Spent\s+\$4\.00$/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    for (const cols of [40, 60, 90, 120]) {
+      test(`the pane fits ${cols} columns on ${surface}`, async ($, on) => {
+        mock.clock(on)
+        on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+        on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'a1' }))
+        answerSteps(on, 'claude-haiku-5-5')
+        await $.agent.spawn(spawnInput({ description: 'rename every fooBar reference across the whole monorepo' }))
+        await step($, 'a1', undefined)
+        const ui = await mountOn($, surface, cols)
+        const pane = (await ui.drawn()) as any
+        expect(pane.props.width).toBeLessThanOrEqual(cols - 2)
+        const table = pane.children.find((c: any) => c.type === 'Box' && c.children?.some((r: any) => r.props?.flexDirection === 'row'))
+        const rows = table.children.flatMap((r: any) =>
+          r.props?.flexDirection === 'row' ? [r] : (r.children ?? []).filter((c: any) => c.props?.flexDirection === 'row'),
+        )
+        for (const row of rows) expect(row.children.reduce((sum: number, cell: any) => sum + cell.props.width, 0)).toBe(pane.props.width)
+        // the money columns always show; Time only when the agent name keeps room
+        expect(await ui.find({ type: 'Text', text: /^Cost$/ })).toBeDefined()
+        expect(await ui.find({ type: 'Text', text: /^Unrouted$/ })).toBeDefined()
+        expect((await ui.find({ type: 'Text', text: /^Time$/ })) !== undefined).toBe(cols - 2 >= 34 + 6 + 16)
+        await ui.unmount()
+      })
+    }
+  }
 })

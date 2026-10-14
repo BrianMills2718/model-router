@@ -27,10 +27,19 @@ export const MODEL_FOR_TIER: Record<Tier, string> = {
 }
 
 /**
- * The classifier stays on Haiku 4.5: it answers without thinking, so an 8-token cap holds.
- * Haiku 5.5 thinks by default and would often come back empty at that cap.
+ * The classifier: Haiku 5.5 at low effort. In a live run it answered all eight test tasks
+ * within the 8-token cap, at a seventh of Haiku 4.5's cost, and placed a small feature as
+ * standard where Haiku 4.5 said simple.
  */
-export const CLASSIFIER_MODEL = 'claude-haiku-4-5-20251001'
+export const CLASSIFIER_MODEL = 'claude-haiku-5-5'
+export const CLASSIFIER_EFFORT = 'low' as const
+
+/**
+ * How long a request's cache writes live. Claude Code writes the main conversation's
+ * prompt cache for an hour (2x input) and a subagent's for five minutes (1.25x input):
+ * pricing them so matched its own session cost to the cent in a live run.
+ */
+export type CacheTtl = '5m' | '1h'
 
 export const ORDER: Tier[] = ['simple', 'standard', 'hard', 'long']
 
@@ -101,13 +110,13 @@ export function tierOfModel(model: string): Tier {
 /**
  * Cost of one request's tokens on a family. Haiku 5.5 switches price above a 100K-token prompt,
  * so call it per request; on summed tokens it prices everything at the lower rate.
- * Cache writes are priced as 5-minute writes; 1-hour writes cost more, so a session that uses
- * them is under-counted here.
+ * Cache writes cost 1.25x input for 5 minutes, 2x for an hour.
  */
-export function costOf(t: Tokens, family: Family): number {
+export function costOf(t: Tokens, family: Family, ttl: CacheTtl = '5m'): number {
   const prompt = t.input + t.cacheRead + t.cacheWrite
   const p = family === 'haiku5' && prompt > HAIKU5_LONG_FROM ? HAIKU5_LONG : PRICES[family]
-  return (t.input * p.input + t.output * p.output + t.cacheWrite * p.cacheWrite + t.cacheRead * p.cacheRead) / 1e6
+  const write = ttl === '1h' ? p.input * 2 : p.cacheWrite
+  return (t.input * p.input + t.output * p.output + t.cacheWrite * write + t.cacheRead * p.cacheRead) / 1e6
 }
 
 export function tokensFromUsage(u: {
@@ -185,6 +194,13 @@ export function asksForLongRun(text: string): boolean {
  * least `hard`, past a role's cap too: getting a destructive act wrong costs more than
  * the tokens, so the risk floor wins over pressure.
  */
+/**
+ * How low rate-limit pressure may push a role that writes code. A builder or fixer moved
+ * from Sonnet to Haiku stalled for 56 minutes on a subtle bug in a live run; easy work the
+ * classifier already put on Haiku stays there.
+ */
+export const PRESSURE_FLOOR: Record<string, Tier> = { builder: 'standard', fixer: 'standard' }
+
 export function routeTier(
   tier: Tier,
   role: string | undefined,
@@ -192,7 +208,8 @@ export function routeTier(
   o: { risky?: boolean; underPressure?: boolean } = {},
 ): Tier {
   const i = ORDER.indexOf(tier)
-  let t = clampTier(o.underPressure ? ORDER[Math.max(0, i - 1)]! : tier, role, allowLong && !o.underPressure)
+  const floor = role && PRESSURE_FLOOR[role] ? Math.min(i, ORDER.indexOf(PRESSURE_FLOOR[role]!)) : 0
+  let t = clampTier(o.underPressure ? ORDER[Math.max(floor, i - 1)]! : tier, role, allowLong && !o.underPressure)
   if (o.risky && ORDER.indexOf(t) < ORDER.indexOf('hard')) t = 'hard'
   return t
 }
@@ -223,6 +240,74 @@ export function fullestWindow(limits: readonly { percentUsed: number }[] | undef
 export function pressureThreshold(setting: unknown): number | undefined {
   const n = Number(setting ?? 80)
   return Number.isFinite(n) && n > 0 && n <= 100 ? n : undefined
+}
+
+/** The tier as the pane says it. */
+export const TIER_WORD: Record<Tier, string> = { simple: 'easy', standard: 'normal', hard: 'hard', long: 'long' }
+
+/**
+ * One line on why an agent got its tier: what the classifier said, then each rule that moved
+ * it. For the pane's expanded row.
+ */
+export function explainTier(o: {
+  source: 'haiku' | 'builtin' | 'fallback'
+  asked: Tier
+  final: Tier
+  role: string | undefined
+  risky: boolean
+  allowLong: boolean
+  pressure?: number
+}): string {
+  const said =
+    o.source === 'haiku'
+      ? `classifier: ${TIER_WORD[o.asked]}${o.risky ? ' risky' : ''}`
+      : o.source === 'builtin'
+        ? `built-in classifier: ${TIER_WORD[o.asked]}`
+        : `no classifier answer, ${o.role ?? 'agent'} default: ${TIER_WORD[o.asked]}`
+  const rules: string[] = []
+  const lim = o.role ? ROLE_LIMITS[o.role] : undefined
+  if (lim?.max && ORDER.indexOf(o.asked) > ORDER.indexOf(lim.max)) rules.push(`${o.role} capped at ${TIER_WORD[lim.max]}`)
+  if (lim?.min && ORDER.indexOf(o.asked) < ORDER.indexOf(lim.min)) rules.push(`${o.role} at least ${TIER_WORD[lim.min]}`)
+  if (o.asked === 'long' && !o.allowLong) rules.push('long work not asked for')
+  if (o.risky && o.final === 'hard' && ORDER.indexOf(o.asked) < ORDER.indexOf('hard')) rules.push('risk floor')
+  if (o.pressure !== undefined) rules.push(`limits ${Math.round(o.pressure)}%: one tier down`)
+  return o.final === o.asked && rules.length === 0
+    ? said
+    : `${said} → ${TIER_WORD[o.final]}${rules.length ? ` (${rules.join(', ')})` : ''}`
+}
+
+/** A duration as `0:42`, `3:05` or `1h04`. */
+export function clockText(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const m = Math.floor(s / 60)
+  return m < 60 ? `${m}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`
+}
+
+/** A rate-limit window's name for the pane: `5h limit`, `7d limit`. */
+export function limitName(kind: string): string {
+  return kind === 'five_hour' ? '5h limit' : kind === 'seven_day' ? '7d limit' : kind.replace(/_/g, ' ')
+}
+
+/** Time left as `42m`, `4h24` or `6d 1h`. */
+export function untilText(ms: number): string {
+  const mins = Math.ceil(ms / 60_000)
+  if (mins < 60) return `${mins}m`
+  const h = Math.floor(mins / 60)
+  if (h < 24) return `${h}h${String(mins % 60).padStart(2, '0')}`
+  return `${Math.floor(h / 24)}d ${h % 24}h`
+}
+
+/**
+ * A rate-limit window as `██░░░ 42%  resets in 4h24`; the reset is left out when unknown or
+ * past. Full and light blocks, which every terminal font draws.
+ */
+export function windowGauge(l: { percentUsed: number; resetsAt?: string }, now: number): string {
+  const pct = Math.max(0, Math.min(100, l.percentUsed))
+  const filled = Math.round(pct / 20)
+  const bar = '█'.repeat(filled) + '░'.repeat(5 - filled)
+  const left = l.resetsAt ? Date.parse(l.resetsAt) - now : NaN
+  const reset = Number.isFinite(left) && left > 0 ? `  resets in ${untilText(left)}` : ''
+  return `${bar} ${Math.round(l.percentUsed)}%${reset}`
 }
 
 export function fallbackTier(role: string | undefined): Tier {

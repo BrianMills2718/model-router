@@ -4,6 +4,27 @@ All notable changes to model-router. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-13
+
+### Added
+
+- **Why each agent got its model.** Press an agent's number in the `/router` pane to see the decision in one line: what the classifier said and each rule that moved it, such as `classifier: hard → normal (limits 82%: one tier down) · effort ≤ medium`.
+- **Rate-limit gauges** in the pane for the 5-hour and weekly windows, with the time to each reset; yellow once routing goes a tier lower.
+- **Status and clocks:** each agent shows `◐` while it runs and `✓` once done, with a running clock in a Time column. The clock ticks on its own, so the pane is not redrawn every second.
+- **Last-turn receipt:** how long the main conversation's last turn took, how many agents it started, what it added and what routing saved.
+- **Claude Code's own session total** beside the table's, so a stale price table shows.
+
+### Changed
+
+- The classifier is now Haiku 5.5 at low effort. In a live run it answered all eight test tasks within its 8-token reply at a seventh of Haiku 4.5's cost, and placed a small feature as `standard` where Haiku 4.5 said `simple`.
+- Under rate-limit pressure a builder or fixer stays on Sonnet or above. A builder moved down to Haiku once stalled for 56 minutes on a subtle bug. Easy work the classifier already put on Haiku stays there.
+- The pane's minimum width keeps every money column; the Time column shows only when there is room for it.
+
+### Fixed
+
+- The main conversation's cache writes are priced as one-hour writes (2x input), as Claude Code makes them, instead of five-minute writes (1.25x). Subagents keep five minutes. The bill now matches Claude Code's own session cost to the cent; before, it under-counted the main conversation.
+- A band line no longer stays up for an agent whose finish events were missed: when the main conversation's turn ends, agents the engine no longer runs are marked finished.
+
 ## [0.5.0] - 2026-10-12
 
 ### Added
@@ -71,7 +92,8 @@ First public release.
 - Settings: **Compare against** (`unrouted`, `fable`, `opus`, `sonnet`), **Route every subagent**, **Keep a model Claude asked for**.
 - Pricing from the October 2026 API list prices, including Haiku 5.5's higher rate above a 100K-token prompt.
 
-[Unreleased]: https://github.com/aott33/model-router/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/aott33/model-router/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/aott33/model-router/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/aott33/model-router/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/aott33/model-router/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/aott33/model-router/compare/v0.3.0...v0.4.0
