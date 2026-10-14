@@ -29,6 +29,8 @@ import {
   parseRisky,
   parseTier,
   pressureThreshold,
+  rescueReason,
+  rescueTier,
   roleOf,
   routeTier,
   tierOfModel,
@@ -208,10 +210,62 @@ const FIELD_WIDTH = 12
 /** The Agent column the Time column must leave before it shows. */
 const AGENT_WIDE = 16
 
-/** Tier word for the pane: `!` when the risk floor raised it, `↓` when rate limits lowered it. */
+/**
+ * Tier word for the pane: `↑` when it was moved up after struggling, `!` when the risk floor
+ * raised it, `↓` when rate limits lowered it.
+ */
 function tierLabel(r: AgentRow): string {
   if (!r.tier || r.via === 'unrouted') return '-'
-  return TIER_WORD[r.tier] + (r.risky ? '!' : r.pressure !== undefined ? '↓' : '')
+  return TIER_WORD[r.tier] + (r.rescued ? '↑' : r.risky ? '!' : r.pressure !== undefined ? '↓' : '')
+}
+
+/** How a routed agent is getting on, for the rescue: its tier and role, and what went wrong so far. */
+type Health = { tier: Tier; role: string | undefined; errors: number; steps: number; since: number }
+
+/**
+ * Counts one more request of a routed agent and, when it is struggling, moves it up one model:
+ * its next requests go there, its effort cap follows the new tier, and its row says why.
+ * The counts start over, so an agent still stuck one tier up can move once more.
+ */
+async function rescueStep(
+  $: EngineInterface,
+  id: string,
+  maps: {
+    health: Map<string, Health>
+    rescuedTo: Map<string, string>
+    effortCaps: Map<string, Effort | undefined>
+    spawnRows: Map<string, SpawnRow>
+  },
+  effortByTier: boolean,
+) {
+  const h = maps.health.get(id)
+  if (!h) return
+  h.steps += 1
+  const now = await $.clock.now()
+  const reason = rescueReason(h.tier, { errors: h.errors, steps: h.steps, ms: now - h.since })
+  if (!reason) return
+  const up = rescueTier(h.tier, h.role)
+  if (!up) {
+    maps.health.delete(id) // nowhere left to go: stop counting
+    return
+  }
+  const model = MODEL_FOR_TIER[up]
+  if (maps.rescuedTo.size > 500) maps.rescuedTo.delete(maps.rescuedTo.keys().next().value!)
+  maps.rescuedTo.set(id, model)
+  maps.health.set(id, { ...h, tier: up, errors: 0, steps: 0, since: now })
+  const effort = effortByTier ? EFFORT_CAP[up] : undefined
+  if (maps.effortCaps.has(id)) maps.effortCaps.set(id, effort)
+  const note = ` · moved up to ${shortModel(model)} (${reason})`
+  const saved = maps.spawnRows.get(id)
+  if (saved) maps.spawnRows.set(id, { ...saved, tier: up, model, effort, why: (saved.why ?? '') + note })
+  await update($, ledger, l => {
+    const row = l.rows[id]
+    if (!row) return l
+    return {
+      ...l,
+      rows: { ...l.rows, [id]: { ...row, tier: up, model, effort, rescued: (row.rescued ?? 0) + 1, why: (row.why ?? '') + note } },
+    }
+  })
 }
 
 /** One running (or just finished) routed subagent, as the band above the prompt shows it. */
@@ -374,6 +428,7 @@ export const register: Register = (on, options) => {
   const respectExplicit = options.respectExplicitModel !== false
   const baselineName = baseline === 'unrouted' ? 'unrouted' : `on ${shortModel(baseline)}`
   const effortByTier = options.effortByTier !== false
+  const rescueOn = options.rescue !== false
   const riskFloor = options.riskFloor !== false
   const pressureAt = options.limitPressure === 'off' ? undefined : pressureThreshold(options.limitPressure)
 
@@ -390,6 +445,10 @@ export const register: Register = (on, options) => {
   const effortCaps = new Map<string, Effort | undefined>()
   /** Each spawn's row details, by agent id, for rows a `/clear` wiped while the agent ran on. */
   const spawnRows = new Map<string, SpawnRow>()
+  /** Each agent the classifier placed, by id: how it is doing, for the rescue. */
+  const health = new Map<string, Health>()
+  /** The model each rescued agent now runs on, by id. */
+  const rescuedTo = new Map<string, string>()
 
   on('session.start', async ($, e, next) => {
     const mode = await loadMode($)
@@ -454,6 +513,15 @@ export const register: Register = (on, options) => {
     }
     return next(e)
   }).catch(($, e, next) => next(e)) // a note about effort is a side job: never block the call
+
+  // A routed agent's tool calls: failures in a row are the rescue's first sign of trouble.
+  // Not for a runner: reporting a failing command is its job, not a sign it is stuck.
+  on('tool.call', async ($, e, next) => {
+    const result = await next(e)
+    const h = e.agentId ? health.get(e.agentId) : undefined
+    if (h && h.role !== 'runner' && result.deny === undefined) h.errors = 'isError' in result && result.isError ? h.errors + 1 : 0
+    return result
+  }).catch(($, e, next) => next(e)) // watching is a side job: never block the call
 
   // 1. Haiku reads the task and sorts it. 2. The router sets the model.
   on('agent.spawn', async ($, e, next) => {
@@ -595,6 +663,11 @@ export const register: Register = (on, options) => {
       if (result.deny !== undefined || !result.agentId) return result
       if (effortCaps.size > 500) effortCaps.clear()
       effortCaps.set(result.agentId, effort)
+      // Only an agent the classifier placed can be moved up: a named or forced model stays.
+      if (rescueOn && (via === 'haiku' || via === 'builtin' || via === 'fallback')) {
+        if (health.size > 500) health.delete(health.keys().next().value!)
+        health.set(result.agentId, { tier, role, errors: 0, steps: 0, since: now })
+      }
       await record($, result.agentId, now, {
         label: e.description,
         agentType: e.subagentType,
@@ -629,10 +702,19 @@ export const register: Register = (on, options) => {
   on('turn.step', async function* ($, e, next) {
     await loadMode($) // the first hook after /clear with a prompt: the pane reads the mode again
     let request = e
+    if (e.agentId && health.has(e.agentId)) {
+      try {
+        await rescueStep($, e.agentId, { health, rescuedTo, effortCaps, spawnRows }, effortByTier)
+      } catch {
+        // the rescue is a side job: the request goes as it was
+      }
+    }
+    const movedTo = e.agentId ? rescuedTo.get(e.agentId) : undefined
+    if (movedTo && movedTo !== e.model) request = { ...request, model: movedTo }
     if (effortByTier && e.agentId && e.effort !== undefined) {
       try {
         const effort = capEffort(e.effort, await effortCapOf($, e.agentId, effortCaps, starting))
-        if (effort !== e.effort) request = { ...e, effort }
+        if (effort !== e.effort) request = { ...request, effort }
       } catch {
         // leave the request as it is
       }
@@ -792,6 +874,7 @@ export const register: Register = (on, options) => {
     const agentWidth = width - fixed
     const baseHead = baseline === 'unrouted' ? 'Unrouted' : `On ${shortModel(baseline)}`
     const hasRisky = shown.some(r => tierLabel(r).endsWith('!'))
+    const hasRescued = shown.some(r => tierLabel(r).endsWith('↑'))
     const hasPressure = shown.some(r => tierLabel(r).endsWith('↓'))
     const tight = pressureAt !== undefined && m.limits.some(w => w.percentUsed >= pressureAt)
     const rowsCost = Object.values(l.rows).reduce((sum, r) => sum + r.cost, 0)
@@ -924,6 +1007,7 @@ export const register: Register = (on, options) => {
               {`${agents} agent${agents === 1 ? '' : 's'} · ${l.routed} routed · classifier ${usd(l.classifierCost)}`}
             </Text>
             <Text dimColor wrap="truncate">ctrl+x tab, then an agent's number: why it got its model. Esc: back to the prompt.</Text>
+            {hasRescued && <Text dimColor>↑ moved up a model after struggling</Text>}
             {hasRisky && <Text dimColor>! risky: sent to Opus at least</Text>}
             {hasPressure && <Text dimColor>↓ one tier lower for rate limits</Text>}
             <Text dimColor wrap="wrap">

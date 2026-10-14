@@ -39,6 +39,8 @@ export type AgentRow = {
   finishedAt?: number
   /** Why it got its model, in one line: what the classifier said and each rule that moved it. */
   why?: string
+  /** How many times it was moved up a model mid-run after struggling. */
+  rescued?: number
 }
 
 /** One rate-limit window as the engine reports it. */

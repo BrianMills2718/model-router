@@ -310,6 +310,34 @@ export function windowGauge(l: { percentUsed: number; resetsAt?: string }, now: 
   return `${bar} ${Math.round(l.percentUsed)}%${reset}`
 }
 
+/**
+ * When a cheap agent counts as struggling: tool calls failing in a row, or more requests or
+ * time than its tier's work should take. Generous on purpose: a rescue switches models
+ * mid-run, which rewrites the agent's whole context at the new model's price once.
+ */
+export const RESCUE = {
+  errorsInARow: 3,
+  steps: { simple: 25, standard: 60 } as Partial<Record<Tier, number>>,
+  minutes: { simple: 10, standard: 30 } as Partial<Record<Tier, number>>,
+}
+
+/** Why an agent on `tier` should move up, or undefined while it is doing fine. */
+export function rescueReason(tier: Tier, h: { errors: number; steps: number; ms: number }): string | undefined {
+  if (h.errors >= RESCUE.errorsInARow) return `${h.errors} failed tool calls in a row`
+  const steps = RESCUE.steps[tier]
+  if (steps !== undefined && h.steps > steps) return `over ${steps} requests`
+  const minutes = RESCUE.minutes[tier]
+  if (minutes !== undefined && h.ms > minutes * 60_000) return `over ${minutes} minutes`
+  return undefined
+}
+
+/** The tier a struggling agent moves up to: one step, never to `long`, never past its role's cap. */
+export function rescueTier(tier: Tier, role: string | undefined): Tier | undefined {
+  const i = ORDER.indexOf(tier) + 1
+  const max = Math.min(ORDER.indexOf('hard'), role && ROLE_LIMITS[role]?.max ? ORDER.indexOf(ROLE_LIMITS[role]!.max!) : 3)
+  return i <= max ? ORDER[i] : undefined
+}
+
 export function fallbackTier(role: string | undefined): Tier {
   return (role && ROLE_LIMITS[role]?.fallback) || 'standard'
 }

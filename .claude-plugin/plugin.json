@@ -1,6 +1,6 @@
 {
   "name": "model-router",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Haiku sorts every subagent task into simple, standard, hard or long run and picks the model; a pane shows what each agent cost.",
   "author": { "name": "Andy" },
   "types": "./types/index.d.ts",
@@ -34,6 +34,12 @@
       "type": "boolean",
       "title": "Send risky tasks to Opus",
       "description": "On: a task whose act could do costly or hard-to-reverse harm (deploying to production, deleting data, a forced push) runs on Opus at least, whatever its role or the rate limits",
+      "default": true
+    },
+    "rescue": {
+      "title": "Move up a struggling agent",
+      "description": "On: an agent the classifier put on Haiku or Sonnet moves up one model mid-run after 3 failed tool calls in a row, or when it runs far longer than its tier's work should take. Never to Fable, never past a role's cap",
+      "type": "boolean",
       "default": true
     },
     "limitPressure": {
