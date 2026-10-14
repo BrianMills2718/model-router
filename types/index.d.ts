@@ -31,6 +31,11 @@ export type AgentRow = {
   effort?: Effort
   /** What this agent would have run on without the router: the parent's model, or its own when unrouted. */
   baselineModel?: string
+  /**
+   * True when `baselineModel` is a guess: the call named no model, the type is not a router
+   * role, and the type had not yet been seen running unrouted, so the parent's model stood in.
+   */
+  baselineGuessed?: boolean
   tokens: Tokens
   /** USD at the price of the model that actually answered each step. */
   cost: number

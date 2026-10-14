@@ -711,6 +711,35 @@ describe('baseline for built-in agents', () => {
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
   })
+
+  test('an Explore with no learned model shows a guessed Unrouted cost', async ($, on) => {
+    mock.clock(on)
+    mock.store(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'standard', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'g1' }))
+    answerSteps(on, 'claude-sonnet-5-5')
+    await $.agent.spawn(spawnInput({ subagentType: 'Explore', description: 'find callers' }))
+    await step($, 'g1', undefined)
+    const ui = await mountPane($)
+    // the parent's Opus $0.028 stands in for Explore's unknown model
+    expect(await ui.find({ type: 'Text', text: /^~\$0\.03$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: "~ guessed: this agent type's own model isn't known yet" })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('an Explore with a learned model is not marked as a guess', async ($, on) => {
+    mock.clock(on)
+    mock.store(on, { agentModels: { Explore: 'claude-haiku-5-5' } })
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'standard', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'x1' }))
+    answerSteps(on, 'claude-sonnet-5-5')
+    await $.agent.spawn(spawnInput({ subagentType: 'Explore', description: 'find callers' }))
+    await step($, 'x1', undefined)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^~/ })).toBe(undefined)
+    expect(await ui.find({ type: 'Text', text: /guessed/ })).toBe(undefined)
+    await ui.unmount()
+  })
 })
 
 describe('baseline for router roles', () => {
@@ -962,6 +991,20 @@ describe('0.6.0 pane', () => {
     const ui = await mountPane($)
     // Haiku 5.5 $0.0007 and the classifier $0.0006 against Sonnet's $0.014: $0.0127 saved
     expect(await ui.find({ type: 'Text', text: /^Last turn\s+0:00 · 1 agent · \+<\$0\.01 · saved \$0\.01$/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('a turn with no agents leaves the agent count out of the receipt', async ($, on) => {
+    mock.clock(on)
+    engineBeneath(on)
+    on('turn.start', async (_$: unknown, e: any) => ({ turnId: e.turnId }))
+    answerSteps(on, 'claude-sonnet-5-5')
+    await $.turn.start({ text: 'hi', turnId: 'm1' })
+    await step($, undefined as any, undefined) // a main-conversation step
+    await $.turn.complete({ turnId: 'm1', answer: '', durationMs: 1, isAborted: false, reason: 'answer' } as never)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^Last turn\s+0:00 · \+\$0\.01$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Last turn.*agent/ })).toBe(undefined)
     await ui.unmount()
   })
 

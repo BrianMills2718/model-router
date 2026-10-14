@@ -774,13 +774,16 @@ export const register: Register = (on, options) => {
         why,
         // A model Claude named would have run anyway. A router role runs on its registered
         // model; another type on its own model when it was seen running unrouted (a built-in
-        // such as Explore), else on the parent's it inherits.
+        // such as Explore), else on the parent's it inherits. The parent's model is a guess,
+        // marked for the pane.
         baselineModel:
           via === 'explicit'
             ? result.model
             : isRole(role)
               ? ROLE_BASELINE
               : (typeModels.models[e.subagentType] ?? e.parentModel),
+        baselineGuessed:
+          (via !== 'explicit' && !isRole(role) && typeModels.models[e.subagentType] === undefined) || undefined,
       }, true, spawnRows)
       return result
     })()
@@ -985,6 +988,7 @@ export const register: Register = (on, options) => {
     const hasRisky = shown.some(r => tierLabel(r).endsWith('!'))
     const hasRescued = shown.some(r => tierLabel(r).endsWith('↑'))
     const hasPressure = shown.some(r => tierLabel(r).endsWith('↓'))
+    const hasGuessed = baseline === 'unrouted' && shown.some(r => r.baselineGuessed)
     const tight = pressureAt !== undefined && m.limits.some(w => w.percentUsed >= pressureAt)
     const rowsCost = Object.values(l.rows).reduce((sum, r) => sum + r.cost, 0)
 
@@ -1078,7 +1082,9 @@ export const register: Register = (on, options) => {
         {m.lastTurn &&
           field(
             'Last turn',
-            `${clockText(m.lastTurn.ms)} · ${m.lastTurn.agents} agent${m.lastTurn.agents === 1 ? '' : 's'} · +${usd(m.lastTurn.cost)}` +
+            `${clockText(m.lastTurn.ms)}` +
+              (m.lastTurn.agents > 0 ? ` · ${m.lastTurn.agents} agent${m.lastTurn.agents === 1 ? '' : 's'}` : '') +
+              ` · +${usd(m.lastTurn.cost)}` +
               (m.lastTurn.saved > 0.005 ? ` · saved ${usd(m.lastTurn.saved)}` : ''),
           )}
         {/* On a subscription Claude Code reports no cost: nothing to compare with then. */}
@@ -1101,7 +1107,7 @@ export const register: Register = (on, options) => {
                     shortModel(r.model),
                     clock(r),
                     usd(r.cost),
-                    usd(baselineCost(r, baseline)),
+                    (baseline === 'unrouted' && r.baselineGuessed ? '~' : '') + usd(baselineCost(r, baseline)),
                     r.via === 'unrouted',
                   )}
                   {open && (
@@ -1117,10 +1123,11 @@ export const register: Register = (on, options) => {
             <Text dimColor wrap="truncate">
               {`${agents} agent${agents === 1 ? '' : 's'} · ${l.routed} routed · classifier ${usd(l.classifierCost)}`}
             </Text>
-            <Text dimColor wrap="truncate">ctrl+x tab, then an agent's number: why it got its model. Esc: back to the prompt.</Text>
+            <Text dimColor wrap="wrap">Why: ctrl+x tab, then a number. Esc: back</Text>
             {hasRescued && <Text dimColor>↑ moved up a model after struggling</Text>}
             {hasRisky && <Text dimColor>! risky: sent to Opus at least</Text>}
             {hasPressure && <Text dimColor>↓ moved down for rate limits or budget</Text>}
+            {hasGuessed && <Text dimColor>~ guessed: this agent type's own model isn't known yet</Text>}
             <Text dimColor wrap="wrap">
               Dim rows are not routed. API list prices; plans billed by subscription see rate-limit use, not dollars.
             </Text>

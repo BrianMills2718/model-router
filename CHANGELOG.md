@@ -4,6 +4,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-14
+
+### Fixed
+
+- The pane marks an Unrouted cost with `~` when it is a guess: the agent type's own model isn't known yet, so the parent's model stands in. A legend line says so.
+- The Last turn line leaves out the agent count when the turn ran no agents.
+- The hint line is shorter and wraps instead of being cut off in a narrow pane.
+
 ## [0.7.0] - 2026-10-14
 
 ### Added
@@ -85,7 +93,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 First release: four agents, per-task routing across Haiku, Sonnet, Opus and Fable, the `/router` pane and three settings.
 
-[Unreleased]: https://github.com/aott33/model-router/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/aott33/model-router/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/aott33/model-router/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/aott33/model-router/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/aott33/model-router/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/aott33/model-router/compare/v0.4.1...v0.5.0
