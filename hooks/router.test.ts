@@ -973,6 +973,25 @@ describe('0.6.0 pane', () => {
     await ui.unmount()
   })
 
+  test('with no agents yet, the pane still shows the rate-limit gauges and Claude Code\'s total', async ($, on) => {
+    mock.clock(on, { now: Date.parse('2026-10-13T10:00:00Z') })
+    on('session.measure', async (_$: unknown, e: any) => ({ changed: e.changed }))
+    await $.session.measure({
+      context: {} as never,
+      rateLimits: [
+        { kind: 'five_hour', percentUsed: 82, resetsAt: '2026-10-13T11:20:00Z' },
+        { kind: 'seven_day', percentUsed: 13 },
+      ],
+      cost: { usd: 0.42 },
+      changed: ['rateLimits', 'cost'],
+    } as never)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: 'No subagents yet. Ask Claude to use an agent and it shows up here.' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '5h ▰▰▰▰▱ 82% ↻1h20 · 7d ▰▱▱▱▱ 13% · one tier down' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Claude Code's own total \$0\.42 · this bill \$0 before the classifier$/ })).toBeDefined()
+    await ui.unmount()
+  })
+
   test('the main conversation\'s cache writes are billed at the hour rate', async ($, on) => {
     mock.clock(on)
     on('turn.step', async function* (_$: unknown, e: any) {

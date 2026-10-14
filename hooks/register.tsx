@@ -873,6 +873,11 @@ export const register: Register = (on, options) => {
               (m.lastTurn.saved > 0.005 ? ` · saved ${usd(m.lastTurn.saved)}` : '')}
           </Text>
         )}
+        {m.engineCost !== undefined && (
+          <Text dimColor wrap="truncate">
+            {`Claude Code's own total ${usd(m.engineCost)} · this bill ${usd(rowsCost)} before the classifier`}
+          </Text>
+        )}
         <Text> </Text>
         {agents === 0 ? (
           <Text dimColor wrap="wrap">No subagents yet. Ask Claude to use an agent and it shows up here.</Text>
@@ -907,11 +912,6 @@ export const register: Register = (on, options) => {
             <Text dimColor wrap="truncate">
               {`${agents} agent${agents === 1 ? '' : 's'} · ${l.routed} routed · classifier ${usd(l.classifierCost)}`}
             </Text>
-            {m.engineCost !== undefined && (
-              <Text dimColor wrap="truncate">
-                {`Claude Code's own total ${usd(m.engineCost)} · these rows ${usd(rowsCost)}`}
-              </Text>
-            )}
             <Text dimColor wrap="truncate">Press an agent's number to see why it got its model.</Text>
             {hasRisky && <Text dimColor>! risky: sent to Opus at least</Text>}
             {hasPressure && <Text dimColor>↓ one tier lower for rate limits</Text>}
