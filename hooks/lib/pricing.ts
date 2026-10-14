@@ -205,8 +205,13 @@ export function routeTier(
   tier: Tier,
   role: string | undefined,
   allowLong: boolean,
-  o: { risky?: boolean; underPressure?: boolean } = {},
+  o: { risky?: boolean; underPressure?: boolean; cheapest?: boolean } = {},
 ): Tier {
+  // The budget is spent: the cheapest tier the role allows. Only the risk floor goes higher.
+  if (o.cheapest) {
+    const t = clampTier('simple', role, false)
+    return o.risky && ORDER.indexOf(t) < ORDER.indexOf('hard') ? 'hard' : t
+  }
   const i = ORDER.indexOf(tier)
   const floor = role && PRESSURE_FLOOR[role] ? Math.min(i, ORDER.indexOf(PRESSURE_FLOOR[role]!)) : 0
   let t = clampTier(o.underPressure ? ORDER[Math.max(floor, i - 1)]! : tier, role, allowLong && !o.underPressure)
@@ -242,6 +247,20 @@ export function pressureThreshold(setting: unknown): number | undefined {
   return Number.isFinite(n) && n > 0 && n <= 100 ? n : undefined
 }
 
+/** The share of the budget at which routing goes one tier cheaper; at 100% it goes cheapest. */
+export const BUDGET_WARN = 80
+
+/** The `budget` setting in dollars, or undefined when off. */
+export function budgetUsd(setting: unknown): number | undefined {
+  const n = Number(setting)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+/** What the classifier read, as one string: the cache's key before hashing. */
+export function classifyKey(input: { agentType: string; description: string; prompt: string }): string {
+  return `${input.agentType}\n${input.description}\n${input.prompt}`
+}
+
 /** The tier as the pane says it. */
 export const TIER_WORD: Record<Tier, string> = { simple: 'easy', standard: 'normal', hard: 'hard', long: 'long' }
 
@@ -257,10 +276,13 @@ export function explainTier(o: {
   risky: boolean
   allowLong: boolean
   pressure?: number
+  /** The session's spend as a share of its budget, when the budget moved the agent. */
+  budget?: { pct: number; usd: number }
+  cached?: boolean
 }): string {
   const said =
     o.source === 'haiku'
-      ? `classifier: ${TIER_WORD[o.asked]}${o.risky ? ' risky' : ''}`
+      ? `classifier${o.cached ? ' (cached)' : ''}: ${TIER_WORD[o.asked]}${o.risky ? ' risky' : ''}`
       : o.source === 'builtin'
         ? `built-in classifier: ${TIER_WORD[o.asked]}`
         : `no classifier answer, ${o.role ?? 'agent'} default: ${TIER_WORD[o.asked]}`
@@ -271,6 +293,12 @@ export function explainTier(o: {
   if (o.asked === 'long' && !o.allowLong) rules.push('long work not asked for')
   if (o.risky && o.final === 'hard' && ORDER.indexOf(o.asked) < ORDER.indexOf('hard')) rules.push('risk floor')
   if (o.pressure !== undefined) rules.push(`limits ${Math.round(o.pressure)}%: one tier down`)
+  if (o.budget)
+    rules.push(
+      o.budget.pct >= 100
+        ? `$${o.budget.usd} budget spent: cheapest allowed`
+        : `${Math.round(o.budget.pct)}% of $${o.budget.usd} budget: one tier down`,
+    )
   return o.final === o.asked && rules.length === 0
     ? said
     : `${said} → ${TIER_WORD[o.final]}${rules.length ? ` (${rules.join(', ')})` : ''}`

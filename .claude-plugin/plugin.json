@@ -49,6 +49,13 @@
       "type": "boolean",
       "default": true
     },
+    "budget": {
+      "title": "Session budget",
+      "description": "Dollars. At 80%, route one tier cheaper; at 100%, the cheapest model each role allows. Risky tasks still get Opus.",
+      "type": "string",
+      "options": ["off", "1", "2", "5", "10", "20", "50"],
+      "default": "off"
+    },
     "limitPressure": {
       "type": "string",
       "title": "Route cheaper near rate limits",

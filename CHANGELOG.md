@@ -9,6 +9,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 ### Added
 
 - Rescue: a stuck Haiku or Sonnet agent moves up one model mid-run. Stuck means 3 failed tool calls in a row (not for runners), over 25/60 requests, or over 10/30 minutes. Setting: **Move up a struggling agent**.
+- Session budget: one tier cheaper at 80%, cheapest allowed at 100%, with a toast at each. Setting: **Session budget**.
+- Classifier cache: a repeated task reuses its verdict, skipping the classifier (about 0.5 s and its cost).
 
 ## [0.6.0] - 2026-10-13
 

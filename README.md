@@ -27,10 +27,11 @@ Rules on top:
 - **Risk floor.** A task whose act could do lasting harm (deploy to prod, delete data, force-push) runs on Opus or higher.
 - **Rate limits.** At 80% of your 5-hour or weekly limit, routing goes one tier cheaper. Builders and fixers stay on Sonnet or higher.
 - **Rescue.** A Haiku or Sonnet agent that is stuck (3 failed tool calls in a row, or far too many requests or minutes) moves up one model mid-run.
+- **Budget.** With a session budget set, routing goes one tier cheaper at 80% and to the cheapest allowed model at 100%. Risky tasks still get Opus.
 - **Effort** is only ever lowered, never raised.
 - **Left alone:** models Claude names, forks, workflow agents and teammates.
 
-If Haiku doesn't answer, the engine's classifier tries, then the role's default.
+If Haiku doesn't answer, the engine's classifier tries, then the role's default. Verdicts are cached, so a repeated task skips the classifier.
 
 ## Commands
 
@@ -47,10 +48,10 @@ The mode is kept across sessions.
 
 ## The pane
 
-- **Header:** spent, unrouted cost and savings, rate-limit gauges, the last turn's receipt, and Claude Code's own total.
+- **Header:** spent, unrouted cost and savings, rate-limit and budget gauges, the last turn's receipt, and Claude Code's own total.
 - **Table:** each agent's status (`◐` running, `✓` done), tier, model, time, cost and unrouted cost.
 - **Why:** press `ctrl+x tab`, then an agent's number, to see why it got its model. `Esc` returns to the prompt.
-- **Marks:** `!` risky, `↓` lowered for rate limits, `↑` rescued. Dim rows weren't routed.
+- **Marks:** `!` risky, `↓` lowered for rate limits or budget, `↑` rescued. Dim rows weren't routed.
 
 A band above the prompt shows each running agent; a status line shows the total.
 
@@ -65,6 +66,7 @@ A band above the prompt shows each running agent; a status line shows the total.
 | Send risky tasks to Opus | on | |
 | Move up a struggling agent | on | |
 | Route cheaper near rate limits | `80` | `70`, `90` or `off` |
+| Session budget | `off` | $1, $2, $5, $10, $20 or $50 |
 
 ## Limits
 

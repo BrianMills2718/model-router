@@ -4,6 +4,7 @@ import type { EngineInterface, Register, RenderElement } from 'claude-code'
 import type { AgentRow, RouterLedger, RouterMeter, RouterView, Tier, Tokens } from '../types'
 import { ROLES, ROLE_MODEL } from './lib/agents'
 import {
+  BUDGET_WARN,
   CLASSIFIER_EFFORT,
   CLASSIFIER_MODEL,
   CLASSIFIER_SYSTEM,
@@ -15,6 +16,8 @@ import {
   ZERO,
   addTokens,
   asksForLongRun,
+  budgetUsd,
+  classifyKey,
   builtinClassifierText,
   capEffort,
   classifierPrompt,
@@ -216,7 +219,7 @@ const AGENT_WIDE = 16
  */
 function tierLabel(r: AgentRow): string {
   if (!r.tier || r.via === 'unrouted') return '-'
-  return TIER_WORD[r.tier] + (r.rescued ? '↑' : r.risky ? '!' : r.pressure !== undefined ? '↓' : '')
+  return TIER_WORD[r.tier] + (r.rescued ? '↑' : r.risky ? '!' : r.pressure !== undefined || r.budget !== undefined ? '↓' : '')
 }
 
 /** How a routed agent is getting on, for the rescue: its tier and role, and what went wrong so far. */
@@ -319,9 +322,11 @@ async function refreshStatus(
   baselineName: string,
   mode: Mode,
   pressureAt: number | undefined,
+  budgetLimit?: number,
 ) {
   const t = totals(await read($, ledger), baseline)
   const parts = [modeLabel(mode)]
+  if (budgetLimit !== undefined) parts.push(`budget ${Math.round((t.cost / budgetLimit) * 100)}% of $${budgetLimit}`)
   if (mode === 'on' && pressureAt !== undefined) {
     const pct = await windowPercent($)
     if (pct >= pressureAt) parts.push(`limits ${Math.round(pct)}%: one tier down`)
@@ -420,6 +425,57 @@ async function effortCapOf(
   return caps.has(agentId) ? caps.get(agentId) : (await read($, ledger)).rows[agentId]?.effort
 }
 
+/** Where classifier verdicts are kept across sessions, by a hash of what the classifier read. */
+const CLASS_CACHE_KEY = 'classified'
+/** How many verdicts the cache keeps; the oldest goes first. */
+const CLASS_CACHE_MAX = 300
+
+type ClassCache = { entries: Map<string, { tier: Tier; risky: boolean }>; loaded: boolean }
+
+/** A SHA-256 of the text, so the store keeps no task text. */
+async function hashKey(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** Reads the cached verdicts once; a verdict made before the read keeps its place. */
+async function loadClassCache($: EngineInterface, c: ClassCache) {
+  if (c.loaded) return
+  c.loaded = true
+  try {
+    const v = await $.store.get(CLASS_CACHE_KEY)
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return
+    const stored = new Map<string, { tier: Tier; risky: boolean }>()
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      const [tier, risky] = String(x).split('|')
+      if (ORDER.includes(tier as Tier)) stored.set(k, { tier: tier as Tier, risky: risky === 'r' })
+    }
+    c.entries = new Map([...stored, ...c.entries])
+  } catch {
+    // start with an empty cache
+  }
+}
+
+/** Keeps a verdict, dropping the oldest past the cap, and saves the cache. */
+async function rememberClass($: EngineInterface, c: ClassCache, key: string, v: { tier: Tier; risky: boolean }) {
+  c.entries.delete(key)
+  c.entries.set(key, v)
+  while (c.entries.size > CLASS_CACHE_MAX) c.entries.delete(c.entries.keys().next().value!)
+  try {
+    await $.store.set(
+      CLASS_CACHE_KEY,
+      Object.fromEntries([...c.entries].map(([k, x]) => [k, `${x.tier}|${x.risky ? 'r' : ''}`])),
+    )
+  } catch (err) {
+    $.ui.log(`could not save the classifier cache: ${String(err)}`)
+  }
+}
+
+/** The budget gauge's text: `████░ 84% of $5`. */
+function budgetText(spent: number, usd: number, now: number): string {
+  return `${windowGauge({ percentUsed: (spent / usd) * 100 }, now)} of $${usd}`
+}
+
 export const register: Register = (on, options) => {
   const baseline = (['unrouted', 'fable', 'opus', 'sonnet'].includes(String(options.baseline))
     ? options.baseline
@@ -429,6 +485,7 @@ export const register: Register = (on, options) => {
   const baselineName = baseline === 'unrouted' ? 'unrouted' : `on ${shortModel(baseline)}`
   const effortByTier = options.effortByTier !== false
   const rescueOn = options.rescue !== false
+  const budgetLimit = budgetUsd(options.budget)
   const riskFloor = options.riskFloor !== false
   const pressureAt = options.limitPressure === 'off' ? undefined : pressureThreshold(options.limitPressure)
 
@@ -449,6 +506,10 @@ export const register: Register = (on, options) => {
   const health = new Map<string, Health>()
   /** The model each rescued agent now runs on, by id. */
   const rescuedTo = new Map<string, string>()
+  /** Classifier verdicts by a hash of what it read, so a repeated task skips the call. */
+  const classCache: ClassCache = { entries: new Map(), loaded: false }
+  /** The highest budget mark already announced with a toast: 0, 80 or 100. */
+  let budgetToasted = 0
 
   on('session.start', async ($, e, next) => {
     const mode = await loadMode($)
@@ -482,6 +543,7 @@ export const register: Register = (on, options) => {
       await update($, ledger, () => EMPTY)
       await update($, meter, m => ({ ...(m ?? EMPTY_METER), turn: undefined, lastTurn: undefined }))
       await update($, view, () => ({}))
+      budgetToasted = 0
       $.ui.status(modeLabel(mode))
       return { text: 'Model router bill cleared.' }
     }
@@ -494,7 +556,7 @@ export const register: Register = (on, options) => {
       } catch (err) {
         $.ui.log(`could not save the router mode: ${String(err)}`)
       }
-      await refreshStatus($, baseline, baselineName, picked, pressureAt)
+      await refreshStatus($, baseline, baselineName, picked, pressureAt, budgetLimit)
       const back = picked === 'on' ? '' : '; /router on to go back'
       return { text: `Model router ${modeText(picked)}. Kept across sessions${back}.` }
     }
@@ -570,6 +632,7 @@ export const register: Register = (on, options) => {
     let model: string | undefined
     let risky = false
     let pressure: number | undefined
+    let budgetPct: number | undefined
     let why: string
 
     if (respectExplicit && e.model) {
@@ -584,7 +647,16 @@ export const register: Register = (on, options) => {
       why = `/router ${mode}: every routed subagent on ${shortModel(model)}`
     } else {
       let picked: Tier | undefined
-      try {
+      let cached = false
+      const asked0 = { agentType: e.subagentType, description: e.description, prompt: e.prompt }
+      const key = await hashKey(classifyKey(asked0))
+      await loadClassCache($, classCache)
+      const hit = classCache.entries.get(key)
+      if (hit) {
+        picked = hit.tier
+        risky = hit.risky
+        cached = true
+      } else try {
         const r = await $.model.complete(
           {
             model: CLASSIFIER_MODEL,
@@ -605,6 +677,7 @@ export const register: Register = (on, options) => {
         if (r.isAnswered) {
           picked = parseTier(r.text)
           risky = parseRisky(r.text)
+          if (picked) await rememberClass($, classCache, key, { tier: picked, risky })
         }
       } catch {
         // try the built-in classifier
@@ -645,8 +718,28 @@ export const register: Register = (on, options) => {
           pressure = pct
         }
       }
+      if (budgetLimit !== undefined) {
+        const pct = (totals(await read($, ledger), baseline).cost / budgetLimit) * 100
+        if (pct >= BUDGET_WARN) {
+          const lower = routeTier(asked, role, allowLong, { risky, underPressure: true, cheapest: pct >= 100 })
+          if (ORDER.indexOf(lower) < ORDER.indexOf(tier)) {
+            tier = lower
+            budgetPct = pct
+          }
+        }
+      }
       model = MODEL_FOR_TIER[tier]
-      why = explainTier({ source: via, asked, final: tier, role, risky, allowLong, pressure })
+      why = explainTier({
+        source: via,
+        asked,
+        final: tier,
+        role,
+        risky,
+        allowLong,
+        pressure,
+        cached,
+        budget: budgetPct !== undefined && budgetLimit !== undefined ? { pct: budgetPct, usd: budgetLimit } : undefined,
+      })
     }
 
     // Effort is set per request in turn.step; here the router only decides the cap.
@@ -677,6 +770,7 @@ export const register: Register = (on, options) => {
         effort,
         risky: risky || undefined,
         pressure,
+        budget: budgetPct,
         why,
         // A model Claude named would have run anyway. A router role runs on its registered
         // model; another type on its own model when it was seen running unrouted (a built-in
@@ -796,7 +890,19 @@ export const register: Register = (on, options) => {
         // the receipt is a side job
       }
     }
-    await refreshStatus($, baseline, baselineName, await currentMode($), pressureAt)
+    await refreshStatus($, baseline, baselineName, await currentMode($), pressureAt, budgetLimit)
+    if (budgetLimit !== undefined) {
+      const pct = (totals(await read($, ledger), baseline).cost / budgetLimit) * 100
+      const mark = pct >= 100 ? 100 : pct >= BUDGET_WARN ? BUDGET_WARN : 0
+      if (mark > budgetToasted) {
+        budgetToasted = mark
+        $.ui.toast(
+          mark === 100
+            ? `Model router: $${budgetLimit} budget spent. Routed agents now get the cheapest model their role allows.`
+            : `Model router: ${Math.round(pct)}% of the $${budgetLimit} budget. Routing one tier cheaper.`,
+        )
+      }
+    }
     return next(e)
   })
 
@@ -819,14 +925,17 @@ export const register: Register = (on, options) => {
 
   on('classic.SubagentStop', async ($, e, next) => {
     await finishAgent($, e.agent_id, spawnRows)
-    await refreshStatus($, baseline, baselineName, await currentMode($), pressureAt)
+    await refreshStatus($, baseline, baselineName, await currentMode($), pressureAt, budgetLimit)
     return next(e)
   }).catch(($, e, next) => next(e)) // the bill is a side job: never hold up a stop
 
   // /clear starts a new session with an empty bill, so the totals go. Kept to one call:
   // session.end shares a short bound. spawnRows stays, for agents still running.
   on('session.end', async ($, e, next) => {
-    if (e.reason === 'clear') $.ui.status(modeLabel(await loadMode($)))
+    if (e.reason === 'clear') {
+      budgetToasted = 0
+      $.ui.status(modeLabel(await loadMode($)))
+    }
     return next(e)
   })
 
@@ -964,6 +1073,8 @@ export const register: Register = (on, options) => {
             pressureAt !== undefined && w.percentUsed >= pressureAt ? 'yellow' : undefined,
           ),
         )}
+        {budgetLimit !== undefined &&
+          field('Budget', budgetText(t.cost, budgetLimit, now), t.cost >= (budgetLimit * BUDGET_WARN) / 100 ? 'yellow' : undefined)}
         {m.lastTurn &&
           field(
             'Last turn',
@@ -1009,7 +1120,7 @@ export const register: Register = (on, options) => {
             <Text dimColor wrap="truncate">ctrl+x tab, then an agent's number: why it got its model. Esc: back to the prompt.</Text>
             {hasRescued && <Text dimColor>↑ moved up a model after struggling</Text>}
             {hasRisky && <Text dimColor>! risky: sent to Opus at least</Text>}
-            {hasPressure && <Text dimColor>↓ one tier lower for rate limits</Text>}
+            {hasPressure && <Text dimColor>↓ moved down for rate limits or budget</Text>}
             <Text dimColor wrap="wrap">
               Dim rows are not routed. API list prices; plans billed by subscription see rate-limit use, not dollars.
             </Text>
