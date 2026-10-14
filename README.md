@@ -1,48 +1,6 @@
 # model-router
 
-A Claude Code mod that picks the model for each subagent before it starts, and shows what each one cost.
-
-## What it does
-
-1. **Four roles.** Adds `model-router:architect` (plans, no edits), `model-router:builder` (writes code), `model-router:runner` (runs tests and commands, no edits) and `model-router:fixer` (fixes what failed).
-2. **Haiku reads every task first.** On each subagent spawn, Haiku 5.5 at low effort sorts the task into `simple`, `standard`, `hard` or `long` in an 8-token reply. It gets 3 seconds; if it fails or names no tier, the engine's built-in classifier gets another 3 seconds before the role default is used.
-3. **The mod routes it.**
-
-   | Tier | Model | Effort | Typical work |
-   | --- | --- | --- | --- |
-   | simple | Haiku 5.5 | low | rename, search, run tests |
-   | standard | Sonnet 5.5 | medium at most | normal feature work |
-   | hard | Opus 5.5 | unchanged | hard bugs, architecture |
-   | long | Fable 5.1 | unchanged | multi-hour or unattended runs the task asks for |
-
-   Effort is only ever lowered, never raised, and only for agents the router picked a model for. An Agent call that sets its own effort keeps it.
-
-   **Risk floor.** Haiku also flags a task as risky when carrying it out could do costly or hard-to-reverse harm: deploying to production, deleting data, a migration or destructive command on shared data, a forced push. It judges the act, not the subject, so writing code that deals with payments or databases is not risky. A risky task runs on Opus at least, past the runner's cap and past rate-limit pressure. If no classifier answers, a narrow pattern check on destructive acts stands in. The pane marks these rows `!` (`hard!`).
-
-   **Rate limits.** When the fullest rate-limit window (5-hour or weekly) is at 80% or more (setting), every routed task goes one tier lower and never to Fable. Role floors still hold, and a builder or fixer stays on Sonnet or above: a builder moved down to Haiku once stalled for most of an hour on a subtle bug. Easy work the classifier already put on Haiku stays there. The status line and the pane show the windows, and the pane marks lowered rows `↓` (`normal↓`). Off a subscription there are no windows, so nothing changes.
-
-   **Rescue.** An agent the classifier put on Haiku or Sonnet moves up one model mid-run when it is struggling: 3 failed tool calls in a row (not for a runner, whose job is to report failing commands), more than 25 requests on Haiku or 60 on Sonnet, or more than 10 minutes on Haiku or 30 on Sonnet. Its next requests go to Sonnet (or from Sonnet to Opus), its effort cap follows the new tier, and its counts start over, so it can move once more. Never to Fable, never past a role's cap, and never for a model Claude named or a `/router` mode. The pane marks these rows `↑`, and the agent's why line says what happened: `… · moved up to Sonnet (3 failed tool calls in a row)`.
-
-   Guard rails: `runner` never goes above Sonnet; `architect` and `fixer` never go below Sonnet; `long` (Fable, 2.5 times Opus) only when the task itself asks for long-running or unattended work ("overnight", "unattended", "multi-hour"), so every other task tops out at Opus; running in the background does not count, since agents run there by default. If neither classifier gives a tier, the role default is used (architect: Opus, builder and fixer: Sonnet, runner: Haiku). Forks, workflow agents and agent-team teammates are not routed (the engine ignores a model change for the first two; a teammate is long-lived, so one classification of its first message is not a good guide). A model Claude already named in the Agent call is kept (setting), and the pane shows it at that model's tier.
-4. **Modes.** `/router off` leaves every subagent on the model it would have had; `/router haiku`, `/router sonnet` or `/router opus` sends every routed subagent to that model without asking the classifier (a model Claude named is still kept, per the setting below); `/router on` goes back to classifying. The mode is kept across sessions and shows in the status line; `/router status` names it.
-5. **Bill pane and band.** `/router` opens a pane headed `Model router · <mode>`:
-   - what was spent, what it would have cost unrouted and the share saved;
-   - gauges for the rate-limit windows with the time to each reset (`5h ▰▰▰▰▱ 82% ↻1h20`), yellow once routing goes a tier lower;
-   - a receipt for the main conversation's last turn: how long it took, how many agents it started, what it added and what routing saved;
-   - a table of each agent: `◐` while it runs and `✓` once done, its tier as a word (`easy`, `normal`, `hard`, `long`), the model that ran it, a running clock, what it cost and what the same tokens would have cost without the router. Focus the pane (`ctrl+x tab` or a click) and press an agent's number to see why it got its model, such as `classifier: hard → normal (limits 82%: one tier down) · effort ≤ medium`;
-   - a footer with the agent count, the routed count, the classifier's cost, and Claude Code's own total for the session beside the table's, so a stale price table shows.
-
-   The main conversation and unrouted agents are dim rows. In a narrow pane the clock goes first; the money columns always stay whole. While routed subagents run, a band above the prompt shows one line each, such as `⇄ builder: fix login → Sonnet · $0.03`, fading 30 seconds after the agent finishes; an agent the engine has dropped without a finish event is cleared when the main conversation's turn ends. A status line under the prompt shows the running total, updated as each subagent finishes. `/router reset` clears it; so does `/clear`.
-
-## Settings (`/config`)
-
-- **Compare against**: `unrouted` (default) prices each routed agent on the model it would have run on without the router: Sonnet for the four router agents (the model they are registered with), the model a built-in agent such as Explore was last seen running on, or else its parent's. Every unrouted row is priced on its own model, so only routing shows as saved. `fable`, `opus` or `sonnet` price everything, the main conversation included, on that model.
-- **Route every subagent**: on routes built-in subagents (Explore, general-purpose) too; off routes only the four router agents.
-- **Keep a model Claude asked for**: on by default.
-- **Lower effort for easy tasks**: on by default; off leaves every agent's effort alone.
-- **Send risky tasks to Opus**: on by default.
-- **Move up a struggling agent**: on by default; off keeps every agent on the model it started on.
-- **Route cheaper near rate limits**: `80` (default), `70`, `90` or `off`; the percentage of the fullest rate-limit window at which routing goes one tier lower.
+A Claude Code mod that picks a model for each subagent and shows what it cost.
 
 ## Install
 
@@ -50,20 +8,73 @@ A Claude Code mod that picks the model for each subagent before it starts, and s
 /plugin install model-router --marketplace aott33/model-router
 ```
 
-Or for development: `claude --plugin-dir ./model-router`
+Needs Claude Code 2.1.287+. For development: `claude --plugin-dir ./model-router`.
 
-Needs Claude Code 2.1.287 or later (mods).
+## How it routes
+
+Haiku 5.5 reads each subagent's task and picks a tier:
+
+| Tier | Model | Effort | For |
+| --- | --- | --- | --- |
+| easy | Haiku 5.5 | low | renames, searches, running tests |
+| normal | Sonnet 5.5 | medium at most | feature work |
+| hard | Opus 5.5 | unchanged | hard bugs, design |
+| long | Fable 5.1 | unchanged | work the task says is long or unattended |
+
+Rules on top:
+
+- **Roles.** Adds four agents: `architect` (plans, Sonnet+), `builder`, `runner` (runs commands, Sonnet max) and `fixer` (Sonnet+).
+- **Risk floor.** A task whose act could do lasting harm (deploy to prod, delete data, force-push) runs on Opus or higher.
+- **Rate limits.** At 80% of your 5-hour or weekly limit, routing goes one tier cheaper. Builders and fixers stay on Sonnet or higher.
+- **Rescue.** A Haiku or Sonnet agent that is stuck (3 failed tool calls in a row, or far too many requests or minutes) moves up one model mid-run.
+- **Effort** is only ever lowered, never raised.
+- **Left alone:** models Claude names, forks, workflow agents and teammates.
+
+If Haiku doesn't answer, the engine's classifier tries, then the role's default.
+
+## Commands
+
+| Command | Does |
+| --- | --- |
+| `/router` | open the pane |
+| `/router off` | stop routing |
+| `/router haiku`, `sonnet`, `opus` | send every routed agent to one model |
+| `/router on` | route again |
+| `/router status` | show the mode |
+| `/router reset` | clear the bill |
+
+The mode is kept across sessions.
+
+## The pane
+
+- **Header:** spent, unrouted cost and savings, rate-limit gauges, the last turn's receipt, and Claude Code's own total.
+- **Table:** each agent's status (`◐` running, `✓` done), tier, model, time, cost and unrouted cost.
+- **Why:** press `ctrl+x tab`, then an agent's number, to see why it got its model. `Esc` returns to the prompt.
+- **Marks:** `!` risky, `↓` lowered for rate limits, `↑` rescued. Dim rows weren't routed.
+
+A band above the prompt shows each running agent; a status line shows the total.
+
+## Settings (`/config`)
+
+| Setting | Default | |
+| --- | --- | --- |
+| Compare against | `unrouted` | price the unrouted column on what each agent would have used, or on `fable`, `opus`, `sonnet` |
+| Route every subagent | on | off: only the four router agents |
+| Keep a model Claude asked for | on | |
+| Lower effort for easy tasks | on | |
+| Send risky tasks to Opus | on | |
+| Move up a struggling agent | on | |
+| Route cheaper near rate limits | `80` | `70`, `90` or `off` |
 
 ## Limits
 
-- The risk flag is Haiku's judgment of a short task description; the pattern check without it only catches plainly named acts. Neither replaces permission prompts.
-- A rescue switches the agent's model mid-run, so its whole context is read once more at the new model's price, without the old model's prompt cache. The thresholds are generous so this stays rare.
-- The built-in classifier's calls are not in the bill: the engine does not report their tokens. Claude Code's own session total leaves out the router's classifier calls too, so the pane compares it with the table's rows alone.
-- A routed subagent's first request may wait up to 2 seconds for its spawn to be recorded, so it gets its effort from the start.
-- Only subagents are routed. The main conversation stays on your session model, so total savings depend on how much work goes through subagents.
-- Costs use API list prices (Oct 2026). Cache writes are priced as Claude Code makes them: an hour for the main conversation, five minutes for subagents; in a live run this matched Claude Code's own session cost to the cent. Haiku 5.5 costs five times as much above a 100K-token prompt; the actual cost is priced per request, the baseline on each row's summed tokens at the lower rate. On a Pro or Max plan the dollar figures are API-equivalent; what you actually save is rate-limit headroom.
-- The baseline assumes the same token counts on the baseline model. Different models use different token counts for the same task, so the "saved" figure is an estimate. A built-in agent's own model is learned from when it last ran unrouted; until then its parent's model stands in. With **Route every subagent** on (the default), built-ins are routed, so this is only learned while that setting is off or after `/router off`: the engine does not say which model a built-in would choose.
-- Model ids live in `hooks/lib/pricing.ts`. Update them and the price table when models change.
+- Only subagents are routed. The main conversation keeps your model.
+- Dollar figures use API list prices. On Pro or Max they're API-equivalent; the real saving is rate-limit headroom.
+- "Saved" assumes the same tokens on another model, so it's an estimate.
+- A rescue re-reads the agent's context at the new model's price.
+- The risk flag is a judgment call. It doesn't replace permission prompts.
+- Explore's own model is learned only from runs it wasn't routed.
+- Model ids and prices live in `hooks/lib/pricing.ts`.
 
 ## Develop
 
@@ -72,8 +83,8 @@ claude plugin validate .
 claude plugin test .
 ```
 
-Releases follow `RELEASING.md`; changes are listed in `CHANGELOG.md`.
+See `RELEASING.md` and `CHANGELOG.md`.
 
 ## Credits
 
-The pane's running clocks, rate-limit gauges and turn receipt follow ideas from [claude-flightdeck](https://github.com/scasella/claude-flightdeck) by Stephen Casella (MIT), a live agent dashboard that works alongside this mod.
+Clock, gauge and receipt ideas from [claude-flightdeck](https://github.com/scasella/claude-flightdeck) (MIT).

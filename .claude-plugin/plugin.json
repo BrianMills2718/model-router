@@ -1,52 +1,64 @@
 {
   "name": "model-router",
   "version": "0.7.0",
-  "description": "Haiku sorts every subagent task into simple, standard, hard or long run and picks the model; a pane shows what each agent cost.",
-  "author": { "name": "Andy" },
+  "description": "Picks Haiku, Sonnet, Opus or Fable for each subagent and shows what it cost.",
+  "author": {
+    "name": "Andy"
+  },
   "types": "./types/index.d.ts",
   "userConfig": {
     "baseline": {
       "type": "string",
       "title": "Compare against",
-      "description": "What the bill pane prices the same tokens on, to show what routing saved. unrouted: the model each agent would have run on without the router: Sonnet for the router's own agents, the model a built-in agent such as Explore was last seen running on, or else its parent's. The main conversation saves nothing",
-      "options": ["unrouted", "fable", "opus", "sonnet"],
+      "description": "What the Unrouted column prices tokens on. unrouted: the model each agent would have used without the router.",
+      "options": [
+        "unrouted",
+        "fable",
+        "opus",
+        "sonnet"
+      ],
       "default": "unrouted"
     },
     "routeAll": {
       "type": "boolean",
       "title": "Route every subagent",
-      "description": "On: route built-in subagents (Explore, general-purpose) too. Off: only the four router agents.",
+      "description": "Off: route only the four router agents.",
       "default": true
     },
     "respectExplicitModel": {
       "type": "boolean",
       "title": "Keep a model Claude asked for",
-      "description": "On: when the Agent call already names a model, leave it alone",
+      "description": "Leave a model the Agent call names.",
       "default": true
     },
     "effortByTier": {
       "type": "boolean",
       "title": "Lower effort for easy tasks",
-      "description": "On: a simple task's subagent thinks at low effort and a standard one at medium at most. Hard and long tasks keep the effort they had, and an Agent call that sets its own effort keeps it",
+      "description": "Easy tasks run at low effort, normal at medium at most. Never raised.",
       "default": true
     },
     "riskFloor": {
       "type": "boolean",
       "title": "Send risky tasks to Opus",
-      "description": "On: a task whose act could do costly or hard-to-reverse harm (deploying to production, deleting data, a forced push) runs on Opus at least, whatever its role or the rate limits",
+      "description": "Run tasks that could do lasting harm (deploy, delete data, force-push) on Opus or higher.",
       "default": true
     },
     "rescue": {
       "title": "Move up a struggling agent",
-      "description": "On: an agent the classifier put on Haiku or Sonnet moves up one model mid-run after 3 failed tool calls in a row, or when it runs far longer than its tier's work should take. Never to Fable, never past a role's cap",
+      "description": "Move a stuck Haiku or Sonnet agent up one model mid-run.",
       "type": "boolean",
       "default": true
     },
     "limitPressure": {
       "type": "string",
       "title": "Route cheaper near rate limits",
-      "description": "When the fullest rate-limit window (5-hour or weekly) is at this percent or more, route one tier lower and never to Fable. off: ignore rate limits",
-      "options": ["off", "70", "80", "90"],
+      "description": "At this share of a rate-limit window, route one tier cheaper. off: ignore limits.",
+      "options": [
+        "off",
+        "70",
+        "80",
+        "90"
+      ],
       "default": "80"
     }
   }
