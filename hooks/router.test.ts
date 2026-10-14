@@ -10,7 +10,10 @@ import {
   looksRisky,
   parseMode,
   parseRisky,
+  budgetUsd,
   parseTier,
+  rescueReason,
+  rescueTier,
   routeTier,
   tierOfModel,
   windowGauge,
@@ -1056,4 +1059,296 @@ describe('0.6.0 pane', () => {
       })
     }
   }
+})
+
+describe('0.7.0 rescue', () => {
+  test('when an agent counts as struggling', async () => {
+    expect(rescueReason('simple', { errors: 2, steps: 5, ms: 60_000 })).toBe(undefined)
+    expect(rescueReason('simple', { errors: 3, steps: 5, ms: 60_000 })).toBe('3 failed tool calls in a row')
+    expect(rescueReason('simple', { errors: 0, steps: 26, ms: 60_000 })).toBe('over 25 requests')
+    expect(rescueReason('standard', { errors: 0, steps: 26, ms: 60_000 })).toBe(undefined)
+    expect(rescueReason('simple', { errors: 0, steps: 1, ms: 11 * 60_000 })).toBe('over 10 minutes')
+    expect(rescueReason('standard', { errors: 0, steps: 1, ms: 31 * 60_000 })).toBe('over 30 minutes')
+    // only failures count for Opus: there is no time or request limit on hard work
+    expect(rescueReason('hard', { errors: 0, steps: 500, ms: 600 * 60_000 })).toBe(undefined)
+  })
+
+  test('where a struggling agent moves to', async () => {
+    expect(rescueTier('simple', 'builder')).toBe('standard')
+    expect(rescueTier('standard', 'builder')).toBe('hard')
+    // never to Fable, never past a role's cap
+    expect(rescueTier('hard', 'builder')).toBe(undefined)
+    expect(rescueTier('simple', 'runner')).toBe('standard')
+    expect(rescueTier('standard', 'runner')).toBe(undefined)
+    expect(rescueTier('simple', undefined)).toBe('standard')
+  })
+
+  /** Answers every tool call as failed (or not), beneath the plugin. */
+  function toolsFail(on: any, failing: { now: boolean }) {
+    on('tool.call', async () => (failing.now ? { result: 'boom' as never, text: 'boom', isError: true } : { result: 'ok' as never, text: 'ok' }))
+  }
+
+  async function bash($: any, agentId: string) {
+    await $.tool.call({ tool: 'Bash', tool_use_id: `t${Math.random()}`, command: 'false', agentId } as never)
+  }
+
+  /** One request of `agentId`, returning the model it reached the engine with. */
+  function stepsSeen(on: any) {
+    const models: string[] = []
+    on('turn.step', async function* (_$: unknown, e: any) {
+      models.push(e.model)
+      return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn' as never, usage: { ...USAGE, model: e.model } }
+    })
+    return models
+  }
+
+  test('three failed tool calls in a row move a Haiku agent up to Sonnet', async ($, on) => {
+    mock.clock(on)
+    const failing = { now: true }
+    toolsFail(on, failing)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'r1' }))
+    const models = stepsSeen(on)
+    await $.agent.spawn(spawnInput())
+    await step($, 'r1', 'high')
+    await bash($, 'r1')
+    await bash($, 'r1')
+    await step($, 'r1', 'high')
+    await bash($, 'r1')
+    await step($, 'r1', 'high')
+    await step($, 'r1', 'high')
+    expect(models).toEqual(['claude-haiku-5-5', 'claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5'])
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^normal↑$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '↑ moved up a model after struggling' })).toBeDefined()
+    await ui.press({ key: 'row-r1' } as never)
+    expect(
+      await ui.find({ type: 'Text', text: /classifier: easy · effort ≤ low · moved up to Sonnet \(3 failed tool calls in a row\)$/ }),
+    ).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('a success in between starts the count again', async ($, on) => {
+    mock.clock(on)
+    const failing = { now: true }
+    toolsFail(on, failing)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'r2' }))
+    const models = stepsSeen(on)
+    await $.agent.spawn(spawnInput())
+    await bash($, 'r2')
+    await bash($, 'r2')
+    failing.now = false
+    await bash($, 'r2')
+    failing.now = true
+    await bash($, 'r2')
+    await step($, 'r2', 'high')
+    expect(models).toEqual(['claude-haiku-5-5'])
+  })
+
+  test('a runner reporting failing commands is not struggling', async ($, on) => {
+    mock.clock(on)
+    toolsFail(on, { now: true })
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'r6' }))
+    const models = stepsSeen(on)
+    await $.agent.spawn(spawnInput({ subagentType: 'model-router:runner' }))
+    for (let i = 0; i < 4; i++) await bash($, 'r6')
+    await step($, 'r6', 'high')
+    expect(models).toEqual(['claude-haiku-5-5'])
+  })
+
+  test('a model Claude named is never moved', async ($, on) => {
+    mock.clock(on)
+    toolsFail(on, { now: true })
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'r3' }))
+    const models = stepsSeen(on)
+    await $.agent.spawn(spawnInput({ model: 'haiku' }))
+    for (let i = 0; i < 4; i++) await bash($, 'r3')
+    await step($, 'r3', 'high')
+    expect(models).toEqual(['claude-haiku-5-5'])
+  })
+
+  test('the rescue can be turned off', { options: { rescue: false } }, async ($, on) => {
+    mock.clock(on)
+    toolsFail(on, { now: true })
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'r4' }))
+    const models = stepsSeen(on)
+    await $.agent.spawn(spawnInput())
+    for (let i = 0; i < 4; i++) await bash($, 'r4')
+    await step($, 'r4', 'high')
+    expect(models).toEqual(['claude-haiku-5-5'])
+  })
+
+  test('an agent running far past its tier\'s time moves up', async ($, on) => {
+    const clock = mock.clock(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'simple', usage: USAGE } }))
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'r5' }))
+    const models = stepsSeen(on)
+    await $.agent.spawn(spawnInput())
+    await step($, 'r5', 'high')
+    await clock.advance(11 * 60_000)
+    await step($, 'r5', 'high')
+    expect(models).toEqual(['claude-haiku-5-5', 'claude-sonnet-5-5'])
+  })
+})
+
+describe('0.7.0 classifier cache', () => {
+  test('the same task twice asks the classifier once', async ($, on) => {
+    mock.clock(on)
+    mock.store(on)
+    let calls = 0
+    on('model.complete', async () => {
+      calls++
+      return { value: { isAnswered: true as const, text: 'hard', usage: USAGE } }
+    })
+    let n = 0
+    const models: string[] = []
+    on('agent.spawn', async (_$, e) => {
+      models.push(e.model ?? '')
+      return { model: e.model ?? '', agentId: `c${++n}` }
+    })
+    await $.agent.spawn(spawnInput())
+    await $.agent.spawn(spawnInput())
+    expect(calls).toBe(1)
+    expect(models).toEqual(['claude-opus-5-5', 'claude-opus-5-5'])
+    const ui = await mountPane($)
+    await ui.press({ key: 'row-c2' } as never)
+    expect(await ui.find({ type: 'Text', text: /^\s+classifier \(cached\): hard$/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('a different task is classified afresh', async ($, on) => {
+    mock.clock(on)
+    mock.store(on)
+    let calls = 0
+    on('model.complete', async () => {
+      calls++
+      return { value: { isAnswered: true as const, text: 'simple', usage: USAGE } }
+    })
+    let n = 0
+    on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: `d${++n}` }))
+    await $.agent.spawn(spawnInput())
+    await $.agent.spawn(spawnInput({ prompt: 'Rename the variable a to b in src/b.ts' }))
+    expect(calls).toBe(2)
+  })
+
+  test('a verdict from an earlier session is reused', async ($, on) => {
+    mock.clock(on)
+    const input = spawnInput()
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(`${input.subagentType}\n${input.description}\n${input.prompt}`),
+    )
+    const key = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('')
+    mock.store(on, { classified: { [key]: 'standard|' } })
+    let calls = 0
+    on('model.complete', async () => {
+      calls++
+      return { value: { isAnswered: true as const, text: 'hard', usage: USAGE } }
+    })
+    let spawnedOn: string | undefined
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'e1' }
+    })
+    await $.agent.spawn(input)
+    expect(calls).toBe(0)
+    expect(spawnedOn).toBe('claude-sonnet-5-5')
+  })
+})
+
+/** One main-conversation request costing `usd` on Sonnet (output tokens at $10 per million). */
+async function mainSpend($: any, on: any, usd: number) {
+  on('turn.step', async function* (_$: unknown, e: any) {
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: '',
+      toolUses: [],
+      stopReason: 'end_turn' as never,
+      usage: { input_tokens: 0, output_tokens: Math.round(usd * 1e5), cache_read_input_tokens: 0, cache_creation_input_tokens: 0, model: 'claude-sonnet-5-5' },
+    }
+  })
+  const s = $.turn.step({ turnId: 'm1', index: 0, model: 'claude-sonnet-5-5', messageCount: 1 })
+  for await (const _ of s) {
+    // drain
+  }
+  await s.result
+}
+
+describe('0.7.0 budget', () => {
+  test('budget setting', async () => {
+    expect(budgetUsd('off')).toBe(undefined)
+    expect(budgetUsd('5')).toBe(5)
+    expect(budgetUsd(undefined)).toBe(undefined)
+  })
+
+  test('at 80% of the budget, routing goes one tier cheaper', { options: { budget: '1' } }, async ($, on) => {
+    mock.clock(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'hard', usage: { ...USAGE, input_tokens: 0, output_tokens: 0 } } }))
+    let spawnedOn: string | undefined
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'b1' }
+    })
+    await mainSpend($, on, 0.85)
+    await $.agent.spawn(spawnInput())
+    expect(spawnedOn).toBe('claude-sonnet-5-5')
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^Budget\s+████░ 85% of \$1$/ })).toBeDefined()
+    await ui.press({ key: 'row-b1' } as never)
+    expect(await ui.find({ type: 'Text', text: /classifier: hard → normal \(85% of \$1 budget: one tier down\)/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('with the budget spent, the cheapest model the role allows; risky tasks keep Opus', { options: { budget: '1' } }, async ($, on) => {
+    mock.clock(on)
+    const answers = ['hard', 'hard', 'standard risky']
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: answers.shift()!, usage: { ...USAGE, input_tokens: 0, output_tokens: 0 } } }))
+    const models: string[] = []
+    let n = 0
+    on('agent.spawn', async (_$, e) => {
+      models.push(e.model ?? '')
+      return { model: e.model ?? '', agentId: `s${++n}` }
+    })
+    await mainSpend($, on, 1.2)
+    await $.agent.spawn(spawnInput())
+    await $.agent.spawn(spawnInput({ subagentType: 'model-router:architect', prompt: 'Plan the cache layer' }))
+    await $.agent.spawn(spawnInput({ prompt: 'Deploy main to production now' }))
+    // builder to Haiku, architect no lower than Sonnet, the risky task on Opus
+    expect(models).toEqual(['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'])
+  })
+
+  test('a toast when the bill crosses 80% and 100%, once each', { options: { budget: '1' } }, async ($, on) => {
+    mock.clock(on)
+    engineBeneath(on)
+    const toasts: string[] = []
+    on('ui.toast', async (_$: unknown, e: any) => {
+      toasts.push(e.text)
+      return { value: undefined }
+    })
+    const done = () => $.turn.complete({ turnId: 'm1', answer: '', durationMs: 1, isAborted: false, reason: 'answer' } as never)
+    await mainSpend($, on, 0.85)
+    await done()
+    await done()
+    expect(toasts).toEqual(['Model router: 85% of the $1 budget. Routing one tier cheaper.'])
+  })
+
+  test('without a budget nothing changes', async ($, on) => {
+    mock.clock(on)
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'hard', usage: { ...USAGE, input_tokens: 0, output_tokens: 0 } } }))
+    let spawnedOn: string | undefined
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'n1' }
+    })
+    await mainSpend($, on, 50)
+    await $.agent.spawn(spawnInput())
+    expect(spawnedOn).toBe('claude-opus-5-5')
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^Budget/ })).toBe(undefined)
+    await ui.unmount()
+  })
 })

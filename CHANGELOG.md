@@ -1,98 +1,92 @@
 # Changelog
 
-All notable changes to model-router. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org). See `RELEASING.md` for the release process.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [SemVer](https://semver.org).
 
 ## [Unreleased]
+
+## [0.7.0] - 2026-10-14
+
+### Added
+
+- Rescue: a stuck Haiku or Sonnet agent moves up one model mid-run. Stuck means 3 failed tool calls in a row (not for runners), over 25/60 requests, or over 10/30 minutes. Setting: **Move up a struggling agent**.
+- Session budget: one tier cheaper at 80%, cheapest allowed at 100%, with a toast at each. Setting: **Session budget**.
+- Classifier cache: a repeated task reuses its verdict, skipping the classifier (about 0.5 s and its cost).
 
 ## [0.6.0] - 2026-10-13
 
 ### Added
 
-- **Why each agent got its model.** Press an agent's number in the `/router` pane to see the decision in one line: what the classifier said and each rule that moved it, such as `classifier: hard → normal (limits 82%: one tier down) · effort ≤ medium`.
-- **Rate-limit gauges** in the pane for the 5-hour and weekly windows, with the time to each reset; yellow once routing goes a tier lower.
-- **Status and clocks:** each agent shows `◐` while it runs and `✓` once done, with a running clock in a Time column. The clock ticks on its own, so the pane is not redrawn every second.
-- **Last-turn receipt:** how long the main conversation's last turn took, how many agents it started, what it added and what routing saved.
-- **Claude Code's own session total** beside the table's, so a stale price table shows.
+- Press an agent's number in the pane to see why it got its model.
+- Rate-limit gauges with reset times.
+- Status marks (`◐`/`✓`) and a running clock per agent.
+- A receipt for the last turn.
+- Claude Code's own session total next to the bill.
 
 ### Changed
 
-- The classifier is now Haiku 5.5 at low effort. In a live run it answered all eight test tasks within its 8-token reply at a seventh of Haiku 4.5's cost, and placed a small feature as `standard` where Haiku 4.5 said `simple`.
-- Under rate-limit pressure a builder or fixer stays on Sonnet or above. A builder moved down to Haiku once stalled for 56 minutes on a subtle bug. Easy work the classifier already put on Haiku stays there.
-- The pane's minimum width keeps every money column; the Time column shows only when there is room for it.
+- Classifier is now Haiku 5.5 at low effort: a seventh of the cost.
+- Under rate-limit pressure, builders and fixers stay on Sonnet or higher.
 
 ### Fixed
 
-- The main conversation's cache writes are priced as one-hour writes (2x input), as Claude Code makes them, instead of five-minute writes (1.25x). Subagents keep five minutes. The bill now matches Claude Code's own session cost to the cent; before, it under-counted the main conversation.
-- A band line no longer stays up for an agent whose finish events were missed: when the main conversation's turn ends, agents the engine no longer runs are marked finished.
+- Main-conversation cache writes are priced at the 1-hour rate. The bill now matches Claude Code's total.
+- Band lines no longer stick for agents that ended without a finish event.
 
 ## [0.5.0] - 2026-10-12
 
 ### Added
 
-- A band above the prompt with one line per running routed subagent, such as `⇄ builder: fix login → Sonnet · $0.03`. A line fades 30 seconds after its agent finishes.
+- A band above the prompt with one line per running agent.
 
 ### Changed
 
-- `long` (Fable) only when the task itself asks for long-running or unattended work (an overnight migration, a multi-hour run). The Agent tool now runs agents in the background by default, so running in the background no longer counts, and the classifier is no longer told whether an agent runs in the background.
-- A built-in agent such as Explore runs on its own model, not its parent's. Its baseline is now the model its type was last seen running on unrouted, kept across sessions, instead of the parent's. The router's own agents (architect, builder, fixer, runner) now compare against Sonnet, the model they are registered with, instead of the parent's, so a session on Opus no longer overstates what routing them saved.
-- The bill pane is redesigned: a `Model router · <mode>` header, `Spent` and `Unrouted ... saved N%` on their own lines, a table with Agent, Tier, Model, Cost and Unrouted columns, and a footer with the agent count, routed count and classifier cost. Tiers read as words (`easy`, `normal`, `hard`, `long`) instead of `S`, `M`, `H`, `L`; the `!` and `↓` marks are explained only when such a row is on screen. With no subagents yet, the pane says how to get one.
+- Fable only when the task asks for long or unattended work. Running in the background no longer counts.
+- Router agents are compared against Sonnet; built-ins against the model they were last seen on.
+- Redesigned pane: header, aligned table, tiers as words.
 
 ### Fixed
 
-- A subagent's row is no longer lost when `/clear` resets the bill while the agent runs: the next step writes it again with its label, tier and model.
-- The status line now updates as soon as a subagent finishes, not at the next turn of the main conversation.
-- `/clear` resets the status line along with the bill.
+- `/clear` no longer leaves a nameless row or a stale status line.
+- The status line updates when a subagent finishes.
 
 ## [0.4.1] - 2026-10-09
 
 ### Fixed
 
-- A routed subagent's first request now gets its lowered effort. It used to go out at the session's effort, because the wait for the spawn re-read shared state that a hook only sees as of when it started. Found by running the mod in a live session; later requests were already right.
-- `/router status` no longer says "router" twice, and `/router on` no longer suggests `/router on to go back`.
+- A subagent's first request now gets its lowered effort.
+- Clearer `/router status` and `/router on` replies.
 
 ## [0.4.0] - 2026-10-09
 
 ### Added
 
-- Risk floor: Haiku flags a task as risky when carrying it out could do costly or hard-to-reverse harm (deploying to production, deleting data, a forced push), judging the act rather than the subject. A risky task runs on Opus at least, past the runner's cap and past rate-limit pressure. Without a classifier answer, a narrow pattern check on destructive acts stands in. New setting **Send risky tasks to Opus** (on by default). The pane marks these rows `!`.
-- Rate-limit awareness: when the fullest rate-limit window is at or past a threshold, routed tasks go one tier lower and never to Fable; role floors still hold. The status line shows the window. New setting **Route cheaper near rate limits** (`80` by default, or `70`, `90`, `off`). The pane marks these rows `↓`.
-
-### Changed
-
-- The classifier may now reply with two words (`hard risky`).
+- Risk floor: risky tasks run on Opus or higher. Setting: **Send risky tasks to Opus**.
+- Rate limits: one tier cheaper at 80% of a window. Setting: **Route cheaper near rate limits**.
 
 ## [0.3.0] - 2026-10-09
 
 ### Added
 
-- Effort by tier: a `simple` subagent runs at `low` effort and a `standard` one at `medium` at most. `hard` and `long` keep the effort they had. Effort is only ever lowered, never raised, and an Agent call that sets its own effort keeps it. New setting **Lower effort for easy tasks** (on by default).
-- `/router on|off|haiku|sonnet|opus|status`: turn routing off, or send every routed subagent to one model without classifying. The mode is kept across sessions and shows in the status line and the bill pane.
-- If Haiku 4.5 fails or names no tier, the engine's built-in classifier is asked before falling back to the role default. Routing keeps working if the pinned classifier model is retired.
+- Effort by tier: easy runs at low, normal at medium at most. Setting: **Lower effort for easy tasks**.
+- `/router on|off|haiku|sonnet|opus|status`.
+- The engine's classifier as a fallback.
 
 ### Changed
 
-- The classifier now gets 3 seconds instead of 8, so a slow classifier holds up a spawn for less time.
+- Classifier timeout cut from 8 to 3 seconds.
 
 ## [0.2.1] - 2026-10-09
 
 ### Fixed
 
-- Agent-team teammates are no longer classified or rerouted. A teammate always runs in the background, so a single read of its first message could send a long-lived agent to Fable. Teammates now start on the model the team gives them and show as dim, unrouted rows in the bill pane.
+- Agent-team teammates are no longer routed.
 
 ## [0.2.0] - 2026-10-09
 
-First public release.
+First release: four agents, per-task routing across Haiku, Sonnet, Opus and Fable, the `/router` pane and three settings.
 
-### Added
-
-- Four subagents: `model-router:architect` (plans, no edits), `model-router:builder` (writes code), `model-router:runner` (runs commands, no edits) and `model-router:fixer` (fixes failures).
-- Per-spawn routing: Haiku 4.5 sorts each subagent task into `simple`, `standard`, `hard` or `long`, which run on Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.1.
-- Guard rails: `runner` is capped at Sonnet; `architect` and `fixer` never go below Sonnet; `long` (Fable) only for background agents, so foreground tasks top out at Opus. A failed or empty classifier reply falls back to the role default. Forks and workflow agents are left alone.
-- `/router` bill pane: each agent's tier, model, cost, and what the same tokens would have cost unrouted, with the main conversation, unrouted agents and classifier calls included in the total. A status line shows the running total; `/router reset` clears it.
-- Settings: **Compare against** (`unrouted`, `fable`, `opus`, `sonnet`), **Route every subagent**, **Keep a model Claude asked for**.
-- Pricing from the October 2026 API list prices, including Haiku 5.5's higher rate above a 100K-token prompt.
-
-[Unreleased]: https://github.com/aott33/model-router/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/aott33/model-router/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/aott33/model-router/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/aott33/model-router/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/aott33/model-router/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/aott33/model-router/compare/v0.4.0...v0.4.1
