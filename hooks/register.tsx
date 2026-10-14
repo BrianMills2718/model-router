@@ -487,6 +487,7 @@ export const register: Register = (on, options) => {
   const rescueOn = options.rescue !== false
   const budgetLimit = budgetUsd(options.budget)
   const riskFloor = options.riskFloor !== false
+  const openAtStart = options.openPane !== false
   const pressureAt = options.limitPressure === 'off' ? undefined : pressureThreshold(options.limitPressure)
 
   /**
@@ -532,7 +533,7 @@ export const register: Register = (on, options) => {
       $.ui.log(`could not add /router: ${String(err)}`)
     }
     // Opened unasked, so it only seats in a wide terminal; /router opens it anywhere.
-    void $.ui.open({ id: PANE, title: 'Model router' })
+    if (openAtStart) void $.ui.open({ id: PANE, title: 'Model router' })
     return next(e)
   })
 

@@ -1429,3 +1429,29 @@ describe('0.7.0 budget', () => {
     await ui.unmount()
   })
 })
+
+describe('0.8.0 pane at start', () => {
+  test('the pane opens when a session starts', async ($, on) => {
+    let opened = 0
+    on('ui.open', async () => {
+      opened++
+      return { value: { isPlaced: true as const } }
+    })
+    on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }))
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    expect(opened).toBe(1)
+  })
+
+  test('with the setting off, only /router opens it', { options: { openPane: false } }, async ($, on) => {
+    let opened = 0
+    on('ui.open', async () => {
+      opened++
+      return { value: { isPlaced: true as const } }
+    })
+    on('session.start', async (_$: unknown, e: any) => ({ cwd: e.cwd }))
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    expect(opened).toBe(0)
+    await $.command.run({ command: 'router', args: '' } as never)
+    expect(opened).toBe(1)
+  })
+})

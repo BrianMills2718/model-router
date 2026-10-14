@@ -59,6 +59,7 @@ A band above the prompt shows each running agent; a status line shows the total.
 
 | Setting | Default | |
 | --- | --- | --- |
+| Open the pane at start | on | off: only `/router` opens it |
 | Compare against | `unrouted` | price the unrouted column on what each agent would have used, or on `fable`, `opus`, `sonnet` |
 | Route every subagent | on | off: only the four router agents |
 | Keep a model Claude asked for | on | |
