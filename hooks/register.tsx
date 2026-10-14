@@ -852,7 +852,8 @@ export const register: Register = (on, options) => {
       const dim = r.via === 'unrouted'
       const mark = r.id === 'main' ? '  ' : r.finishedAt === undefined ? '◐ ' : '✓ '
       const key = i < 9 && r.id !== 'main' ? String(i + 1) : undefined
-      const name = fit(`${key ? `${key} ` : ''}${r.label}`, agentWidth - 2)
+      // The surface draws a Button's hotkey itself (`1:`), so the label is the name alone.
+      const name = fit(r.label, agentWidth - (key ? 5 : 2))
       return (
         <Box flexDirection="row">
           <Text dimColor={r.finishedAt !== undefined || dim}>{mark}</Text>

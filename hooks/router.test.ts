@@ -581,7 +581,7 @@ describe('bill', () => {
     expect(await ui.find({ type: 'Text', text: 'Model router · on' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Spent\s+<\$0\.01$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.01\s+saved 91%$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Button', text: '1 rename fooBar' })).toBeDefined()
+    expect(await ui.find({ type: 'Button', text: 'rename fooBar' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^easy$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Haiku$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^1 agent · 1 routed · classifier <\$0\.01$/ })).toBeDefined()
@@ -803,7 +803,7 @@ describe('/clear', () => {
     await $.command.run({ command: 'router', args: 'reset' } as never)
     await step($, 'a1', undefined)
     const ui = await mountPane($)
-    expect(await ui.find({ type: 'Button', text: '1 rename fooBar' })).toBeDefined()
+    expect(await ui.find({ type: 'Button', text: 'rename fooBar' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^easy$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'subagent' })).toBe(undefined)
     expect(await ui.find({ type: 'Text', text: /1 routed/ })).toBeDefined()
@@ -918,6 +918,10 @@ describe('0.6.0 pane', () => {
     await step($, 'a1', undefined)
     const ui = await mountPane($)
     expect(await ui.find({ type: 'Text', text: /classifier: easy/ })).toBe(undefined)
+    // the surface prints the hotkey itself: the label is the name, the number its hotkey
+    const row = (await ui.find({ key: 'row-a1' })) as any
+    expect(row.props.label).toBe('rename fooBar')
+    expect(row.props.hotkey).toBe('1')
     await ui.press({ key: 'row-a1' } as never)
     expect(await ui.find({ type: 'Text', text: /^\s+classifier: easy · effort ≤ low$/ })).toBeDefined()
     await ui.press({ key: 'row-a1' } as never)
