@@ -231,9 +231,18 @@ export function looksRisky(text: string): boolean {
   return RISKY_ACT.test(text)
 }
 
-/** Reads the classifier's risk flag: the word `risky` after the tier. */
+/**
+ * The classifier's verdict: its last non-empty line. Haiku sometimes explains first, and the
+ * explanation can name other tiers or say "not risky".
+ */
+function verdictLine(text: string): string {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+  return lines[lines.length - 1] ?? ''
+}
+
+/** Reads the classifier's risk flag: the word `risky` after the tier, on the verdict line. */
 export function parseRisky(text: string): boolean {
-  return /\brisky\b/i.test(text)
+  return /\brisky\b/i.test(verdictLine(text))
 }
 
 /** The fullest rate-limit window, in percent; 0 off a subscription or before the first reading. */
@@ -256,9 +265,12 @@ export function budgetUsd(setting: unknown): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
-/** What the classifier read, as one string: the cache's key before hashing. */
+/**
+ * What the classifier read, as one string: the cache's key before hashing. The rubric is part
+ * of it, so a new rubric doesn't reuse verdicts the old one gave.
+ */
 export function classifyKey(input: { agentType: string; description: string; prompt: string }): string {
-  return `${input.agentType}\n${input.description}\n${input.prompt}`
+  return `${CLASSIFIER_SYSTEM}\n${input.agentType}\n${input.description}\n${input.prompt}`
 }
 
 /** The tier as the pane says it. */
@@ -370,24 +382,24 @@ export function fallbackTier(role: string | undefined): Tier {
   return (role && ROLE_LIMITS[role]?.fallback) || 'standard'
 }
 
-/** Reads the classifier's reply: the first tier word it names. */
+/** Reads the classifier's reply: the first tier word on its verdict line, else in the whole reply. */
 export function parseTier(text: string): Tier | undefined {
-  const m = /\b(simple|standard|hard|long)\b/i.exec(text)
-  return m ? (m[1]!.toLowerCase() as Tier) : undefined
+  const tierIn = (t: string) => /\b(simple|standard|hard|long)\b/i.exec(t)?.[1]?.toLowerCase() as Tier | undefined
+  return tierIn(verdictLine(text)) ?? tierIn(text)
 }
 
 export const CLASSIFIER_SYSTEM = `You route coding subagent tasks to a model. Read the task and reply with exactly one word.
 
 simple   - mechanical, little judgment: rename, find/search/grep, list files, run an existing test or build command and report, format, small single-file edits with an obvious answer.
-standard - normal feature work: implement a function or component, write tests, a refactor within a few files, a bug with a clear repro.
-hard     - needs deep reasoning: architecture or design decisions, an intermittent or cross-cutting bug, concurrency, security, performance work, a migration with subtle risk.
+standard - most coding work: implement, plan or review a feature or fix, write tests, refactor across several files, fix a bug whose failure is known, follow a detailed plan. Long or detailed instructions do not make a task harder; they make it easier.
+hard     - only when the problem itself needs deep reasoning: a bug whose cause is unknown and intermittent or cross-cutting, concurrency or race conditions, a security audit, performance tuning, a design with real trade-offs between competing approaches, a data migration with subtle risk. Planning a change whose steps the task already spells out is standard.
 long     - only when the task explicitly asks for long-running or unattended multi-hour work, such as a large build or migration left to run overnight. Running in the background is not long.
 
-Pick the cheapest tier that will succeed. If unsure between two, pick the higher.
+Pick the cheapest tier that will succeed. If unsure between simple and standard, pick standard. If unsure between standard and hard, pick standard.
 
-Then add the word risky if carrying out the task itself could do costly or hard-to-reverse harm: deploying to production, running a migration or a destructive command against production or shared data, deleting data, rotating or exposing credentials, moving money, force-pushing over shared history. Judge the act, not the subject: writing, refactoring or testing code that deals with payments, databases or credentials is not risky.
+Then add the word risky only if the agent itself will do costly or hard-to-reverse harm outside the working tree: deploying to production, a migration or destructive command against production or shared data, deleting data not in version control, rotating or exposing credentials, moving money, force-pushing over shared history. Judge only what the agent will run, not what the code it writes would do. Not risky: writing or editing code (including a migration or script that deletes data), running tests or a test database, committing locally, deleting files under version control.
 
-Reply with the tier word alone, or the tier word and risky: for example "standard" or "hard risky".`
+Reply with the tier word alone, or the tier word and risky: for example "standard" or "hard risky". Do not explain.`
 
 /** What the engine's built-in classifier reads when Haiku 4.5 gives no tier: no rubric, so keep it short. */
 export function builtinClassifierText(input: { agentType: string; description: string; prompt: string }): string {
