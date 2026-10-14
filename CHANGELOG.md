@@ -4,6 +4,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-10-14
+
+### Fixed
+
+- Planning and detailed tasks no longer go to Opus. Hard now means an unknown-cause or racy bug, security, performance or a real design trade-off.
+- Writing code that deletes or resets data is no longer flagged risky. Only what the agent itself runs counts.
+- A classifier reply that explains itself is read by its last line, so "no risky flag" isn't read as risky.
+- Verdicts cached by 0.7.1 or earlier are not reused.
+
 ## [0.7.1] - 2026-10-14
 
 ### Fixed
@@ -93,7 +102,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 First release: four agents, per-task routing across Haiku, Sonnet, Opus and Fable, the `/router` pane and three settings.
 
-[Unreleased]: https://github.com/aott33/model-router/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/aott33/model-router/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/aott33/model-router/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/aott33/model-router/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/aott33/model-router/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/aott33/model-router/compare/v0.5.0...v0.6.0

@@ -3,6 +3,8 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import {
   asksForLongRun,
   capEffort,
+  CLASSIFIER_SYSTEM,
+  classifyKey,
   clampTier,
   costOf,
   explainTier,
@@ -21,6 +23,11 @@ import {
 
 /** Billionths of a dollar, so float sums compare exactly. */
 const nano = (usd: number) => Math.round(usd * 1e9)
+
+async function sha256(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('')
+}
 
 const USAGE = { input_tokens: 1000, output_tokens: 1000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 
@@ -65,6 +72,8 @@ describe('pure routing rules', () => {
   test('tiers and caps', async () => {
     expect(parseTier('Hard.')).toBe('hard')
     expect(parseTier('dunno')).toBe(undefined)
+    // An explanation first: the verdict is the last line.
+    expect(parseTier('Not hard: the steps are spelled out.\n\nstandard')).toBe('standard')
     expect(clampTier('long', 'runner')).toBe('standard')
     expect(clampTier('simple', 'architect')).toBe('standard')
     expect(clampTier('simple', undefined)).toBe('simple')
@@ -257,6 +266,14 @@ describe('risk floor and rate limits: pure rules', () => {
   test('the act is risky, not the subject', async () => {
     expect(parseRisky('hard risky')).toBe(true)
     expect(parseRisky('standard')).toBe(false)
+    expect(parseRisky('Commits locally, so no risky flag.\n\nlong')).toBe(false)
+    expect(parseRisky('Drops a production table.\n\nsimple risky')).toBe(true)
+  })
+
+  test('a cached verdict is keyed on the rubric that gave it', async () => {
+    const task = { agentType: 'Explore', description: 'find callers', prompt: 'find callers of usd' }
+    expect(classifyKey(task)).toContain(CLASSIFIER_SYSTEM)
+    expect(classifyKey(task)).toContain(task.prompt)
     expect(looksRisky('Deploy the new build to production')).toBe(true)
     expect(looksRisky('run DROP TABLE users on the shared db')).toBe(true)
     expect(looksRisky('git push --force origin main')).toBe(true)
@@ -1280,11 +1297,7 @@ describe('0.7.0 classifier cache', () => {
   test('a verdict from an earlier session is reused', async ($, on) => {
     mock.clock(on)
     const input = spawnInput()
-    const digest = await crypto.subtle.digest(
-      'SHA-256',
-      new TextEncoder().encode(`${input.subagentType}\n${input.description}\n${input.prompt}`),
-    )
-    const key = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('')
+    const key = await sha256(classifyKey({ agentType: input.subagentType, description: input.description, prompt: input.prompt }))
     mock.store(on, { classified: { [key]: 'standard|' } })
     let calls = 0
     on('model.complete', async () => {
@@ -1298,6 +1311,27 @@ describe('0.7.0 classifier cache', () => {
     })
     await $.agent.spawn(input)
     expect(calls).toBe(0)
+    expect(spawnedOn).toBe('claude-sonnet-5-5')
+  })
+
+  test('a verdict the old rubric gave is not reused', async ($, on) => {
+    mock.clock(on)
+    const input = spawnInput()
+    // 0.7.0 keyed verdicts on the task alone.
+    const key = await sha256(`${input.subagentType}\n${input.description}\n${input.prompt}`)
+    mock.store(on, { classified: { [key]: 'hard|' } })
+    let calls = 0
+    on('model.complete', async () => {
+      calls++
+      return { value: { isAnswered: true as const, text: 'standard', usage: USAGE } }
+    })
+    let spawnedOn: string | undefined
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'e1' }
+    })
+    await $.agent.spawn(input)
+    expect(calls).toBe(1)
     expect(spawnedOn).toBe('claude-sonnet-5-5')
   })
 })

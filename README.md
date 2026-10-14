@@ -17,14 +17,14 @@ Haiku 5.5 reads each subagent's task and picks a tier:
 | Tier | Model | Effort | For |
 | --- | --- | --- | --- |
 | easy | Haiku 5.5 | low | renames, searches, running tests |
-| normal | Sonnet 5.5 | medium at most | feature work |
-| hard | Opus 5.5 | unchanged | hard bugs, design |
+| normal | Sonnet 5.5 | medium at most | feature work, plans, fixes with a known failure |
+| hard | Opus 5.5 | unchanged | unknown-cause or racy bugs, security, design trade-offs |
 | long | Fable 5.1 | unchanged | work the task says is long or unattended |
 
 Rules on top:
 
 - **Roles.** Adds four agents: `architect` (plans, Sonnet+), `builder`, `runner` (runs commands, Sonnet max) and `fixer` (Sonnet+).
-- **Risk floor.** A task whose act could do lasting harm (deploy to prod, delete data, force-push) runs on Opus or higher.
+- **Risk floor.** A task whose agent will do lasting harm (deploy to prod, delete real data, force-push) runs on Opus or higher. Writing such code doesn't count.
 - **Rate limits.** At 80% of your 5-hour or weekly limit, routing goes one tier cheaper. Builders and fixers stay on Sonnet or higher.
 - **Rescue.** A Haiku or Sonnet agent that is stuck (3 failed tool calls in a row, or far too many requests or minutes) moves up one model mid-run.
 - **Budget.** With a session budget set, routing goes one tier cheaper at 80% and to the cheapest allowed model at 100%. Risky tasks still get Opus.
