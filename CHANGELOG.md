@@ -4,6 +4,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-14
+
+### Added
+
+- Setting **Open the pane at start**. Off: only `/router` opens it. From a fork by [4leX-42](https://github.com/4leX-42/model-router).
+
 ## [0.7.2] - 2026-10-14
 
 ### Fixed
@@ -102,7 +108,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 First release: four agents, per-task routing across Haiku, Sonnet, Opus and Fable, the `/router` pane and three settings.
 
-[Unreleased]: https://github.com/aott33/model-router/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/aott33/model-router/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/aott33/model-router/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/aott33/model-router/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/aott33/model-router/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/aott33/model-router/compare/v0.6.0...v0.7.0
