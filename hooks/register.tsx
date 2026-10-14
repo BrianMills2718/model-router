@@ -923,7 +923,7 @@ export const register: Register = (on, options) => {
             <Text dimColor wrap="truncate">
               {`${agents} agent${agents === 1 ? '' : 's'} · ${l.routed} routed · classifier ${usd(l.classifierCost)}`}
             </Text>
-            <Text dimColor wrap="truncate">Press an agent's number to see why it got its model.</Text>
+            <Text dimColor wrap="truncate">ctrl+x tab, then an agent's number: why it got its model. Esc: back to the prompt.</Text>
             {hasRisky && <Text dimColor>! risky: sent to Opus at least</Text>}
             {hasPressure && <Text dimColor>↓ one tier lower for rate limits</Text>}
             <Text dimColor wrap="wrap">
