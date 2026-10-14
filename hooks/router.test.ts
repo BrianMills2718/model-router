@@ -579,8 +579,8 @@ describe('bill', () => {
     // the Haiku 5.5 classifier call adds $0.0006, so $0.0013 against $0.014 is 91% saved
     const ui = await mountPane($)
     expect(await ui.find({ type: 'Text', text: 'Model router · on' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^Spent <\$0\.01$/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01\s+saved 91%$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Spent\s+<\$0\.01$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.01\s+saved 91%$/ })).toBeDefined()
     expect(await ui.find({ type: 'Button', text: '1 rename fooBar' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^easy$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Haiku$/ })).toBeDefined()
@@ -637,7 +637,7 @@ describe('bill', () => {
     await step($, 'n1', undefined)
     const ui = await mountPane($, 40)
     // Sonnet 5.5 $0.014 unrouted, Haiku 5.5 $0.0007 routed plus $0.0006 for the classifier: 91% saved
-    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01\s+saved 91%$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.01\s+saved 91%$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^Unrouted$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.01$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^<\$0\.01$/ })).toBeDefined()
@@ -686,7 +686,7 @@ describe('baseline for built-in agents', () => {
     await step($, 'x1', undefined)
     const ui = await mountPane($)
     // Sonnet 5.5 $0.014 against Haiku 5.5 $0.0007, not the parent's Opus $0.028
-    expect(await ui.find({ type: 'Text', text: /^Unrouted <\$0\.01\s+\d+% more$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+<\$0\.01\s+\d+% more$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
   })
@@ -704,7 +704,7 @@ describe('baseline for built-in agents', () => {
     await $.agent.spawn(spawnInput({ subagentType: 'Explore', description: 'find callees' }))
     await step($, 'y2', undefined)
     const ui = await mountPane($)
-    expect(await ui.find({ type: 'Text', text: /^Unrouted <\$0\.01/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+<\$0\.01/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
   })
@@ -722,14 +722,14 @@ describe('baseline for router roles', () => {
     let ui = await mountPane($)
     // the builder's step: Sonnet $0.014 against Sonnet $0.014; on Opus it would be $0.028
     expect(await ui.findAll({ type: 'Text', text: /^\$0\.01$/ })).toHaveLength(2)
-    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.01/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.01/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
 
     await $.agent.spawn(spawnInput({ subagentType: 'model-router:fixer', description: 'fix login' }))
     await step($, 'b2', undefined)
     ui = await mountPane($)
-    expect(await ui.find({ type: 'Text', text: /^Unrouted \$0\.03/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Unrouted\s+\$0\.03/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^\$0\.03$/ })).toBe(undefined)
     await ui.unmount()
   })
@@ -889,10 +889,12 @@ describe('0.6.0 rules', () => {
 
   test('rate-limit gauges', async () => {
     const now = Date.parse('2026-10-13T10:00:00Z')
-    expect(windowGauge({ kind: 'five_hour', percentUsed: 82, resetsAt: '2026-10-13T11:20:00Z' }, now)).toBe('5h ▰▰▰▰▱ 82% ↻1h20')
-    expect(windowGauge({ kind: 'seven_day', percentUsed: 13 }, now)).toBe('7d ▰▱▱▱▱ 13%')
-    expect(windowGauge({ kind: 'five_hour', percentUsed: 5, resetsAt: '2026-10-13T10:42:00Z' }, now)).toBe('5h ▱▱▱▱▱ 5% ↻42m')
-    expect(windowGauge({ kind: 'five_hour', percentUsed: 5, resetsAt: '2026-10-13T09:00:00Z' }, now)).toBe('5h ▱▱▱▱▱ 5%')
+    expect(windowGauge({ percentUsed: 82, resetsAt: '2026-10-13T11:20:00Z' }, now)).toBe('████░ 82%  resets in 1h20')
+    expect(windowGauge({ percentUsed: 13 }, now)).toBe('█░░░░ 13%')
+    expect(windowGauge({ percentUsed: 5, resetsAt: '2026-10-13T10:42:00Z' }, now)).toBe('░░░░░ 5%  resets in 42m')
+    expect(windowGauge({ percentUsed: 5, resetsAt: '2026-10-13T09:00:00Z' }, now)).toBe('░░░░░ 5%')
+    // a weekly window reads in days, not 144 hours
+    expect(windowGauge({ percentUsed: 11, resetsAt: '2026-10-19T11:00:00Z' }, now)).toBe('█░░░░ 11%  resets in 6d 1h')
   })
 })
 
@@ -952,7 +954,7 @@ describe('0.6.0 pane', () => {
     await $.turn.complete({ turnId: 'm1', answer: '', durationMs: 1, isAborted: false, reason: 'answer' } as never)
     const ui = await mountPane($)
     // Haiku 5.5 $0.0007 and the classifier $0.0006 against Sonnet's $0.014: $0.0127 saved
-    expect(await ui.find({ type: 'Text', text: /^last turn 0:00 · 1 agent · \+<\$0\.01 · saved \$0\.01$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Last turn\s+0:00 · 1 agent · \+<\$0\.01 · saved \$0\.01$/ })).toBeDefined()
     await ui.unmount()
   })
 
@@ -987,8 +989,18 @@ describe('0.6.0 pane', () => {
     } as never)
     const ui = await mountPane($)
     expect(await ui.find({ type: 'Text', text: 'No subagents yet. Ask Claude to use an agent and it shows up here.' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '5h ▰▰▰▰▱ 82% ↻1h20 · 7d ▰▱▱▱▱ 13% · one tier down' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^Claude Code's own total \$0\.42 · this bill \$0 before the classifier$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^5h limit\s+████░ 82%  resets in 1h20  · one tier down$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^7d limit\s+█░░░░ 13%$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Claude Code\s+\$0\.42 total · this bill \$0 before the classifier$/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('on a subscription Claude Code reports no cost, so there is nothing to compare', async ($, on) => {
+    mock.clock(on)
+    on('session.measure', async (_$: unknown, e: any) => ({ changed: e.changed }))
+    await $.session.measure({ context: {} as never, rateLimits: [], cost: { usd: 0 }, changed: ['cost'] } as never)
+    const ui = await mountPane($)
+    expect(await ui.find({ type: 'Text', text: /^Claude Code/ })).toBe(undefined)
     await ui.unmount()
   })
 
@@ -1011,7 +1023,7 @@ describe('0.6.0 pane', () => {
     await s.result
     const ui = await mountPane($)
     // 1M cache-write tokens on Sonnet 5.5: $4.00 for an hour, not $2.50 for five minutes
-    expect(await ui.find({ type: 'Text', text: 'Spent $4.00' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Spent\s+\$4\.00$/ })).toBeDefined()
     await ui.unmount()
   })
 

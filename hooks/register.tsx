@@ -34,6 +34,7 @@ import {
   tierOfModel,
   tokensFromUsage,
   usd,
+  limitName,
   windowGauge,
   type CacheTtl,
   type Family,
@@ -202,6 +203,8 @@ const BASE_WIDTH = 10
 const MIN_FIXED = TIER_WIDTH + MODEL_WIDTH + COST_WIDTH + BASE_WIDTH
 /** The narrowest Agent column: a status mark and the ellipsis. */
 const AGENT_MIN = 4
+/** The header's label column. */
+const FIELD_WIDTH = 12
 /** The Agent column the Time column must leave before it shows. */
 const AGENT_WIDE = 16
 
@@ -793,6 +796,13 @@ export const register: Register = (on, options) => {
     const tight = pressureAt !== undefined && m.limits.some(w => w.percentUsed >= pressureAt)
     const rowsCost = Object.values(l.rows).reduce((sum, r) => sum + r.cost, 0)
 
+    // A labelled header row: the label in a fixed column so the values line up.
+    const field = (label: string, value: string, color?: string) => (
+      <Text key={`field-${label}`} wrap="truncate" color={color}>
+        {label.padEnd(FIELD_WIDTH) + value}
+      </Text>
+    )
+
     const toggle = (id: string) => () =>
       update($, view, v => ({ expanded: (v ?? {}).expanded === id ? undefined : id }))
 
@@ -860,24 +870,24 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column" width={width}>
         <Text bold>{`Model router · ${mode}`}</Text>
         {mode !== 'on' && <Text color="yellow">{`${modeLabel(mode)} (/router on to go back)`}</Text>}
-        <Text>{`Spent ${usd(t.cost)}`}</Text>
-        <Text color={t.saved > 0 ? 'green' : undefined}>{`${baseHead} ${usd(t.base)}` + savedText(t)}</Text>
-        {m.limits.length > 0 && (
-          <Text wrap="truncate" color={tight ? 'yellow' : undefined} dimColor={!tight}>
-            {m.limits.map(w => windowGauge(w, now)).join(' · ') + (tight && mode === 'on' ? ' · one tier down' : '')}
-          </Text>
+        <Text> </Text>
+        {field('Spent', usd(t.cost))}
+        {field(baseHead, `${usd(t.base)}${savedText(t)}`, t.saved > 0 ? 'green' : undefined)}
+        {m.limits.map(w =>
+          field(
+            limitName(w.kind),
+            windowGauge(w, now) + (tight && mode === 'on' && pressureAt !== undefined && w.percentUsed >= pressureAt ? '  · one tier down' : ''),
+            pressureAt !== undefined && w.percentUsed >= pressureAt ? 'yellow' : undefined,
+          ),
         )}
-        {m.lastTurn && (
-          <Text wrap="truncate" dimColor>
-            {`last turn ${clockText(m.lastTurn.ms)} · ${m.lastTurn.agents} agent${m.lastTurn.agents === 1 ? '' : 's'} · +${usd(m.lastTurn.cost)}` +
-              (m.lastTurn.saved > 0.005 ? ` · saved ${usd(m.lastTurn.saved)}` : '')}
-          </Text>
-        )}
-        {m.engineCost !== undefined && (
-          <Text dimColor wrap="truncate">
-            {`Claude Code's own total ${usd(m.engineCost)} · this bill ${usd(rowsCost)} before the classifier`}
-          </Text>
-        )}
+        {m.lastTurn &&
+          field(
+            'Last turn',
+            `${clockText(m.lastTurn.ms)} · ${m.lastTurn.agents} agent${m.lastTurn.agents === 1 ? '' : 's'} · +${usd(m.lastTurn.cost)}` +
+              (m.lastTurn.saved > 0.005 ? ` · saved ${usd(m.lastTurn.saved)}` : ''),
+          )}
+        {/* On a subscription Claude Code reports no cost: nothing to compare with then. */}
+        {(m.engineCost ?? 0) > 0 && field('Claude Code', `${usd(m.engineCost!)} total · this bill ${usd(rowsCost)} before the classifier`)}
         <Text> </Text>
         {agents === 0 ? (
           <Text dimColor wrap="wrap">No subagents yet. Ask Claude to use an agent and it shows up here.</Text>

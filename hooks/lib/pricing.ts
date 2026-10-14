@@ -283,19 +283,31 @@ export function clockText(ms: number): string {
   return m < 60 ? `${m}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`
 }
 
-/** A rate-limit window as `5h ▰▰▰▰▱ 82% ↻1h20` or `↻42m`; the reset is left out when unknown or past. */
-export function windowGauge(l: { kind: string; percentUsed: number; resetsAt?: string }, now: number): string {
-  const name = l.kind === 'five_hour' ? '5h' : l.kind === 'seven_day' ? '7d' : l.kind.replace(/_/g, ' ')
+/** A rate-limit window's name for the pane: `5h limit`, `7d limit`. */
+export function limitName(kind: string): string {
+  return kind === 'five_hour' ? '5h limit' : kind === 'seven_day' ? '7d limit' : kind.replace(/_/g, ' ')
+}
+
+/** Time left as `42m`, `4h24` or `6d 1h`. */
+export function untilText(ms: number): string {
+  const mins = Math.ceil(ms / 60_000)
+  if (mins < 60) return `${mins}m`
+  const h = Math.floor(mins / 60)
+  if (h < 24) return `${h}h${String(mins % 60).padStart(2, '0')}`
+  return `${Math.floor(h / 24)}d ${h % 24}h`
+}
+
+/**
+ * A rate-limit window as `██░░░ 42%  resets in 4h24`; the reset is left out when unknown or
+ * past. Full and light blocks, which every terminal font draws.
+ */
+export function windowGauge(l: { percentUsed: number; resetsAt?: string }, now: number): string {
   const pct = Math.max(0, Math.min(100, l.percentUsed))
   const filled = Math.round(pct / 20)
-  const bar = '▰'.repeat(filled) + '▱'.repeat(5 - filled)
+  const bar = '█'.repeat(filled) + '░'.repeat(5 - filled)
   const left = l.resetsAt ? Date.parse(l.resetsAt) - now : NaN
-  const mins = Math.ceil(left / 60_000)
-  const reset =
-    Number.isFinite(left) && left > 0
-      ? ` ↻${mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')}`}`
-      : ''
-  return `${name} ${bar} ${Math.round(l.percentUsed)}%${reset}`
+  const reset = Number.isFinite(left) && left > 0 ? `  resets in ${untilText(left)}` : ''
+  return `${bar} ${Math.round(l.percentUsed)}%${reset}`
 }
 
 export function fallbackTier(role: string | undefined): Tier {
