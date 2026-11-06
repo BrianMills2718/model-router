@@ -3,6 +3,10 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import {
   asksForLongRun,
   capEffort,
+  effortCapFor,
+  judgeRoleOf,
+  LONG_PROMPT_CHARS,
+  EFFORT_CAP,
   CLASSIFIER_SYSTEM,
   classifyKey,
   clampTier,
@@ -86,6 +90,29 @@ describe('pure routing rules', () => {
     expect(clampTier('long', 'builder', true)).toBe('long')
     expect(tierOfModel('opus')).toBe('hard')
     expect(tierOfModel('claude-haiku-4-5')).toBe('simple')
+  })
+
+  test('effort caps by tier; Haiku gets medium on a long prompt', async () => {
+    expect(effortCapFor('simple', 100)).toBe('low')
+    expect(effortCapFor('simple', LONG_PROMPT_CHARS + 1)).toBe('medium')
+    expect(effortCapFor('standard', LONG_PROMPT_CHARS + 1)).toBe('medium')
+    expect(effortCapFor('hard')).toBe('high')
+    expect(effortCapFor('long')).toBe(undefined)
+    // hard work is capped at high, never raised
+    expect(capEffort('max', effortCapFor('hard'))).toBe('high')
+    expect(capEffort('medium', effortCapFor('hard'))).toBe('medium')
+  })
+
+  test('judging agents never go to Haiku', async () => {
+    expect(judgeRoleOf('company-planning:planning-compliance-reviewer')).toBe('judge')
+    expect(judgeRoleOf('reviewer')).toBe('judge')
+    expect(judgeRoleOf('Plan')).toBe('judge')
+    expect(judgeRoleOf('bulk-worker')).toBe(undefined)
+    expect(judgeRoleOf('Explore')).toBe(undefined)
+    expect(clampTier('simple', 'judge')).toBe('standard')
+    expect(clampTier('hard', 'judge')).toBe('hard')
+    // pace and pressure cannot push a judge below Sonnet
+    expect(routeTier('hard', 'judge', false, { down: 2 })).toBe('standard')
   })
 
   test('long only when the task asks for a long or unattended run', async () => {
@@ -437,14 +464,14 @@ describe('effort', () => {
     expect(seen.effort).toBe('low')
   })
 
-  test('a hard task keeps the effort it had', async ($, on) => {
+  test('a hard task keeps its effort up to high and no further', async ($, on) => {
     mock.clock(on)
     on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'hard', usage: USAGE } }))
     on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'e2' }))
     const seen = captureEffort(on)
     await $.agent.spawn(spawnInput())
     await step($, 'e2', 'xhigh')
-    expect(seen.effort).toBe('xhigh')
+    expect(seen.effort).toBe('high')
   })
 
   test('a model without effort is not given one', async ($, on) => {
@@ -1294,7 +1321,7 @@ describe('0.7.0 classifier cache', () => {
     expect(models).toEqual(['claude-opus-5-5', 'claude-opus-5-5'])
     const ui = await mountPane($)
     await ui.press({ key: 'row-c2' } as never)
-    expect(await ui.find({ type: 'Text', text: /^\s+classifier \(cached\): hard$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^\s+classifier \(cached\): hard · effort ≤ high$/ })).toBeDefined()
     await ui.unmount()
   })
 

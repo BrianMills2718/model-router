@@ -53,8 +53,21 @@ const EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']
 export const EFFORT_CAP: Record<Tier, Effort | undefined> = {
   simple: 'low',
   standard: 'medium',
-  hard: undefined,
+  hard: 'high',
   long: undefined,
+}
+
+/**
+ * A prompt this long (about 50k tokens) lifts Haiku's cap from low to medium: Anthropic says
+ * at low in long agent prompts Haiku 5.5 "is more likely to skip a search, stop early, or skip a check".
+ * Source: inferred by agent from the Haiku 5.5 effort guidance (#162 research, section 1.2).
+ */
+export const LONG_PROMPT_CHARS = 200_000
+
+/** The cap for a tier, given the size of the prompt the agent starts with. */
+export function effortCapFor(tier: Tier, promptChars = 0): Effort | undefined {
+  if (tier === 'simple' && promptChars > LONG_PROMPT_CHARS) return 'medium'
+  return EFFORT_CAP[tier]
 }
 
 /**
@@ -169,6 +182,21 @@ export const ROLE_LIMITS: Record<string, { min?: Tier; max?: Tier; fallback: Tie
   builder: { fallback: 'standard' },
   runner: { max: 'standard', fallback: 'simple' },
   fixer: { min: 'standard', fallback: 'standard' },
+  // Agents that judge, review or design (any plugin's): never Haiku. A wrong approval or plan is silent.
+  judge: { min: 'standard', fallback: 'standard' },
+}
+
+/**
+ * Agent types whose output is a judgment or a design, so errors are silent and no cheap check
+ * catches them. They get the `judge` limits: Haiku never, whoever installed them.
+ * Matched on the agent type's name (an identifier), not on task prose.
+ * Source: Brian, 2026-11-06 on #162: "haiku in some places"; design, review and anything he reads
+ * stay off Haiku is inferred by agent from the research (silent-error class, section 4).
+ */
+const JUDGE_TYPES = new Set(['architect', 'plan', 'reviewer', 'code-review', 'project-brain', 'researcher'])
+export function judgeRoleOf(agentType: string): string | undefined {
+  const name = (agentType.split(':').pop() ?? '').toLowerCase()
+  return JUDGE_TYPES.has(name) || name.endsWith('-reviewer') ? 'judge' : undefined
 }
 
 export function roleOf(agentType: string): string | undefined {
@@ -214,7 +242,7 @@ export function asksForLongRun(text: string): boolean {
  * from Sonnet to Haiku stalled for 56 minutes on a subtle bug in a live run; easy work the
  * classifier already put on Haiku stays there.
  */
-export const PRESSURE_FLOOR: Record<string, Tier> = { builder: 'standard', fixer: 'standard' }
+export const PRESSURE_FLOOR: Record<string, Tier> = { builder: 'standard', fixer: 'standard', judge: 'standard' }
 
 export function routeTier(
   tier: Tier,
@@ -488,7 +516,7 @@ export function parseTier(text: string): Tier | undefined {
 
 export const CLASSIFIER_SYSTEM = `You route coding subagent tasks to a model. Read the task and reply with exactly one word.
 
-simple   - mechanical, little judgment: rename, find/search/grep, list files, run an existing test or build command and report, format, small single-file edits with an obvious answer.
+simple   - mechanical fan-out with a cheap check on the result: rename, find/search/grep, list files, summarize logs or test output, run an existing test, lint or build command and report, format, version bumps, small single-file edits with an obvious answer. Never simple: designing, planning, reviewing or judging work, finding a root cause, or writing something a person will read as the final answer.
 standard - most coding work: implement, plan or review a feature or fix, write tests, refactor across several files, fix a bug whose failure is known, follow a detailed plan. Long or detailed instructions do not make a task harder; they make it easier.
 hard     - only when the problem itself needs deep reasoning: a bug whose cause is unknown and intermittent or cross-cutting, concurrency or race conditions, a security audit, performance tuning, a design with real trade-offs between competing approaches, a data migration with subtle risk. Planning a change whose steps the task already spells out is standard.
 long     - only when the task explicitly asks for long-running or unattended multi-hour work, such as a large build or migration left to run overnight. Running in the background is not long.

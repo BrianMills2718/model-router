@@ -25,6 +25,8 @@ import {
   explainTier,
   clockText,
   fallbackTier,
+  effortCapFor,
+  judgeRoleOf,
   familyOf,
   fullestWindow,
   isLongPrompt,
@@ -643,6 +645,7 @@ export const register: Register = (on, options) => {
     await loadTypeModels($, typeModels)
     const callSetEffort = callEffort.delete(e.tool_use_id)
     const role = roleOf(e.subagentType)
+    const limitRole = role ?? judgeRoleOf(e.subagentType)
     const now = await $.clock.now()
 
     // Not routed: forks always inherit, a workflow agent's model cannot be rewritten,
@@ -762,13 +765,13 @@ export const register: Register = (on, options) => {
       // Without Haiku's judgment, only a plainly destructive act counts as risky.
       if (via !== 'haiku') risky ||= looksRisky(`${e.description}\n${e.prompt}`)
       risky &&= riskFloor
-      const asked = picked ?? fallbackTier(role)
+      const asked = picked ?? fallbackTier(limitRole)
       // Agents run in the background by default, so only the task's own words open up `long`.
       const allowLong = asksForLongRun(`${e.description}\n${e.prompt}`)
-      tier = routeTier(asked, role, allowLong, { risky })
+      tier = routeTier(asked, limitRole, allowLong, { risky })
       if (pressureAt !== undefined) {
         const pct = await windowPercent($)
-        const lower = pct >= pressureAt ? routeTier(asked, role, allowLong, { risky, underPressure: true }) : tier
+        const lower = pct >= pressureAt ? routeTier(asked, limitRole, allowLong, { risky, underPressure: true }) : tier
         // Marked only when the window actually moved the agent down.
         if (lower !== tier) {
           tier = lower
@@ -778,7 +781,7 @@ export const register: Register = (on, options) => {
       if (paceMode) {
         const p = await currentPace($, now)
         if (p && p.steps > 0) {
-          const lower = routeTier(asked, role, allowLong, { risky, down: p.steps })
+          const lower = routeTier(asked, limitRole, allowLong, { risky, down: p.steps })
           // Marked only when pace actually moved the agent below what the other rules chose.
           if (ORDER.indexOf(lower) < ORDER.indexOf(tier)) {
             tier = lower
@@ -789,7 +792,7 @@ export const register: Register = (on, options) => {
       if (budgetLimit !== undefined) {
         const pct = (totals(await read($, ledger), baseline).cost / budgetLimit) * 100
         if (pct >= BUDGET_WARN) {
-          const lower = routeTier(asked, role, allowLong, { risky, underPressure: true, cheapest: pct >= 100 })
+          const lower = routeTier(asked, limitRole, allowLong, { risky, underPressure: true, cheapest: pct >= 100 })
           if (ORDER.indexOf(lower) < ORDER.indexOf(tier)) {
             tier = lower
             budgetPct = pct
@@ -814,7 +817,7 @@ export const register: Register = (on, options) => {
     // Effort is set per request in turn.step; here the router only decides the cap.
     const effort =
       effortByTier && via !== 'explicit' && via !== 'forced' && !callSetEffort
-        ? EFFORT_CAP[tier]
+        ? effortCapFor(tier, e.prompt.length)
         : undefined
     if (effort) why += ` · effort ≤ ${effort}`
 

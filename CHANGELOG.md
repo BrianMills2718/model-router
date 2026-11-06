@@ -4,6 +4,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+### Changed
+
+- Effort cap for `hard` is now `high` (was unchanged); Haiku's cap is `medium` when the prompt is over about 50k tokens.
+- The classifier's `simple` tier is mechanical fan-out with a cheap check (search, log summaries, test runs, version bumps) and never design, review or root cause.
+
+### Added
+
+- Judging agent types (architect, Plan, reviewer, code-review, project-brain, researcher, `*-reviewer`) never run on Haiku, even under pace or rate-limit pressure.
+- README: the main-model lever is the settings default plus `/model`; the feedback loop and its weekly review.
+
 ## [0.8.1-pace.1] - 2026-11-05
 
 ### Added
