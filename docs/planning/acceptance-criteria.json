@@ -25,7 +25,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A1.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/README.md#how-it-routes",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/README.md#how-it-routes",
    "status": "built"
   },
   {
@@ -42,7 +42,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A2.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/README.md#how-it-routes",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/README.md#how-it-routes",
    "status": "built"
   },
   {
@@ -59,7 +59,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A3.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/README.md#limits",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/README.md#limits",
    "status": "built"
   },
   {
@@ -77,7 +77,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A4.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/research-routing-best-practices.md",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/docs/planning/research-routing-best-practices.md",
    "status": "built"
   },
   {
@@ -95,7 +95,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A5.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/evidence/router-weekly-review-sample.md",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/docs/planning/evidence/router-weekly-review-sample.md",
    "status": "built"
   },
   {
@@ -112,7 +112,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A6.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/evidence/router-report-2026-11-05.md",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/docs/planning/evidence/router-report-2026-11-05.md",
    "status": "built"
   },
   {
@@ -129,7 +129,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A7.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/evidence/router-report-2026-11-05.md",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/docs/planning/evidence/router-report-2026-11-05.md",
    "status": "built"
   },
   {
@@ -159,7 +159,7 @@
     "Press ctrl+x tab and the agent's number in the pane and read its Why line",
     "Ask it to run a reviewer subagent on a small diff and read that row"
    ],
-   "expected": "The search agent's row shows the easy tier, Haiku 5.5 and 'effort ≤ low'. The reviewer row shows Sonnet or Opus, never Haiku.",
+   "expected": "The search agent's row shows the easy tier, Haiku 5.5 and 'effort \u2264 low'. The reviewer row shows Sonnet or Opus, never Haiku.",
    "failure_example": "The search agent runs on Opus, or the reviewer row shows Haiku 5.5.",
    "representation": {
     "view": "argument-page",
@@ -247,7 +247,7 @@
      "A3",
      "A9"
     ],
-    "coverage_reason": "A3 checks that the main model default persists into new sessions (settings-level config), and A9 checks that subagent tier routing actually works in a freshly started session — together they would fail if the updates were not applied durably across sessions.",
+    "coverage_reason": "A3 checks that the main model default persists into new sessions (settings-level config), and A9 checks that subagent tier routing actually works in a freshly started session \u2014 together they would fail if the updates were not applied durably across sessions.",
     "extent": "full",
     "missing": "",
     "deferral": 0,
@@ -273,7 +273,7 @@
      "A2",
      "A9"
     ],
-    "coverage_reason": "A2 fails if the Effort column does not show a named level per tier with a stated reason, and A9 fails if the search agent's live row does not show effort ≤ low.",
+    "coverage_reason": "A2 fails if the Effort column does not show a named level per tier with a stated reason, and A9 fails if the search agent's live row does not show effort \u2264 low.",
     "extent": "full",
     "missing": "",
     "deferral": 0,
@@ -310,7 +310,7 @@
      "A5",
      "A8"
     ],
-    "coverage_reason": "A5 fails if no weekly review page with a proposed-decision table exists, and A8 fails if no mechanism exists to record an acceptance and apply it — together they confirm a feedback system is in place.",
+    "coverage_reason": "A5 fails if no weekly review page with a proposed-decision table exists, and A8 fails if no mechanism exists to record an acceptance and apply it \u2014 together they confirm a feedback system is in place.",
     "extent": "full",
     "missing": "",
     "deferral": 0,
@@ -323,7 +323,7 @@
      "A5",
      "A8"
     ],
-    "coverage_reason": "A5 checks that proposed decisions are based on real run evidence, and A8 checks that an accepted decision actually changes a rule value in a named commit — the system would fail both if the rules did not improve from feedback.",
+    "coverage_reason": "A5 checks that proposed decisions are based on real run evidence, and A8 checks that an accepted decision actually changes a rule value in a named commit \u2014 the system would fail both if the rules did not improve from feedback.",
     "extent": "full",
     "missing": "",
     "deferral": 0,

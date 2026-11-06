@@ -18,8 +18,8 @@ Brian, 2026-11-06 on code2-workspace #162: "why dont we just update that now acr
 
 1. Merge this branch through `ship`; PR #1 (pace mode) is contained in it and closes as merged.
 2. After the first full week of runs under the new rules (week of 2026-11-09), read `weekly/2026-W46.md`. For each proposed decision, read the listed transcripts, then accept or reject it and record which (Q1, Q2, Q5).
-3. Re-read the two Anthropic pages behind the Haiku rules and compare the numbers (Q3).
-4. Grep the unread tail of the hooks and model-config pages for a way to set the main model (Q4); change README "Limits" if one exists.
+3. Done 2026-11-06: the Anthropic pages still say what the Haiku rules rest on (Q3), and no plugin mechanism sets the main model (Q4); evidence is in the ledger.
+4. Keep the main-model lever manual (settings default plus `/model`); revisit only if the hooks reference gains a way to set the session model.
 
 ## Domain concepts this plan relies on
 
@@ -27,7 +27,7 @@ tier, effort-cap, judging-agent, pressure, classifier-verdict, outcome-signal, w
 
 ## Cost basis
 
-The plan adds no model call of its own. The router already runs one Haiku 5.5 classifier call per new task key at subagent start (`hooks/register.tsx:494`); the report and review scripts make no model call. The classifier's per-call figure is a guess until `llm-cost` or the 2026-11-05 report's claude-haiku-5-5 row ($0.37 across both columns) is divided by the number of classifications, which the logs do not record.
+The plan adds no model call of its own. The router already runs one Haiku 5.5 classifier call per new task key at subagent start (`hooks/register.tsx:494`); the report and review scripts make no model call. The classifier figure is a worked-out estimate, not a measurement: 1 call, at most about 2,100 input tokens (the 2,187-character rubric plus a task cut at 6,000 characters, at a guessed 4 characters per token), 48 output tokens, at Haiku 5.5's $0.10 in and $0.50 out per million (`hooks/lib/pricing.ts:9`), no cached share: about $0.00023 per new task key. The 4 characters per token ratio is a guess; the logs do not record classifier calls, so there is no measured figure.
 
 Cheapest design that still does the job: a rubric inside the one existing Haiku call plus constants in `pricing.ts`; no second model, no learned router. The research found learned routers often fail to beat a fixed baseline (research-routing-best-practices.md:73) and signals that need no learning (role, check cost, blast radius) are safer.
 

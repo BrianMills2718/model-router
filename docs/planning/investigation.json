@@ -87,19 +87,19 @@
    "claim": "Anthropic's Haiku-subagent test saved 32% for about 4 points of pass rate, and low effort skips checks in long Haiku prompts (the basis of the Haiku rules)",
    "evidence": [
     "docs/planning/research-routing-best-practices.md:24",
-    "docs/planning/research-routing-best-practices.md:41"
+    "docs/planning/research-routing-best-practices.md:41",
+    "docs/planning/open-questions.json (Q3 and Q4 evidence, re-read 2026-11-06)"
    ],
-   "verdict": "unknown",
-   "question_id": "Q3"
+   "verdict": "holds"
   },
   {
    "id": "F6",
    "claim": "A plugin cannot set the main conversation's model or effort (the reason item 1 builds no hook)",
    "evidence": [
-    "docs/planning/research-routing-best-practices.md:64"
+    "docs/planning/research-routing-best-practices.md:64",
+    "docs/planning/open-questions.json (Q3 and Q4 evidence, re-read 2026-11-06)"
    ],
-   "verdict": "unknown",
-   "question_id": "Q4"
+   "verdict": "holds"
   },
   {
    "id": "F7",

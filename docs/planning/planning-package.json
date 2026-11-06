@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "record_type": "planning_package",
  "repository": "BrianMills2718/model-router",
- "subject_revision": "4c83852f3faeff4aad3521013e22beca8beba7c6",
+ "subject_revision": "f2bf05b4ee5d2770c0270d676bc1ea1082ab6aa1",
  "request": "Brian 2026-11-06 on code2-workspace #162 \"why dont we just update that now across sessions and haiku in some places also and the reaosnign level and we should eawrn the ebst rpactics on this bth form resarch and first rprinciples and set upa feedback ssystme so ti improves over time\"; item 6 of that issue asks for this planning package, which unblocks PR #1 (pace mode).",
  "full_method": false,
  "route": "durable_solo",
@@ -177,7 +177,7 @@
       "cost_per_run_usd": 0.000234,
       "calls_per_run": 1,
       "basis": "computed",
-      "evidence": "hooks/lib/pricing.ts:517 system prompt is 2,187 characters and classifierPrompt cuts the task at 6,000 characters (hooks/lib/pricing.ts:536), so at most about 2,100 input tokens at 4 characters per token (a guess for the ratio); maxTokens is 48 (hooks/register.tsx:727); Haiku 5.5 price is $0.10 in and $0.50 out per million (hooks/lib/pricing.ts:9); no cached share assumed",
+      "evidence": "worked-out estimate with a guessed 4 characters per token ratio, not measured: hooks/lib/pricing.ts:517 system prompt is 2,187 characters and classifierPrompt cuts the task at 6,000 characters (hooks/lib/pricing.ts:536), so at most about 2,100 input tokens at 4 characters per token (a guess for the ratio); maxTokens is 48 (hooks/register.tsx:727); Haiku 5.5 price is $0.10 in and $0.50 out per million (hooks/lib/pricing.ts:9); no cached share assumed",
       "computation": {
        "calls": 1,
        "input_tokens_per_call": 2100,
@@ -205,13 +205,14 @@
   },
   "review_page": {
    "status": "present",
-   "path": "proposals/planning-package/review-page/index.html"
+   "path": "proposals/planning-package/review-page/index.html",
+   "url": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/proposals/planning-package/review-page/index.html"
   },
   "cold_review": {
    "status": "present",
    "path": "docs/planning/cold-review.md",
    "verdict": "revise",
-   "reviewed_revision": "4c83852f3faeff4aad3521013e22beca8beba7c6"
+   "reviewed_revision": "f2bf05b4ee5d2770c0270d676bc1ea1082ab6aa1"
   }
  }
 }

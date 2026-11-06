@@ -1,7 +1,7 @@
 {
  "title": "model-router: Haiku tier, effort caps and feedback loop",
  "lead": "A fork of a Claude Code plugin that picks a model for each subagent. This plan sends mechanical work to Haiku, caps reasoning effort per tier, shows main-conversation cost and tunes itself from outcomes.",
- "what_you_do": "Judge each of the eight criteria below on the README and the two sample pages; answer Q5 only if you want to change the default.",
+ "what_you_do": "Judge the nine criteria below. Seven (A1-A7) you can judge now on the README and the two sample pages. A8 and A9 are not yet demonstrable: A8 needs the first accepted weekly decision (after 2026-11-09) and A9 needs a new session with the router loaded. Answer Q5 only if you want to change the default.",
  "north_star": "Subagent work runs on the cheapest model and effort that is safe, and the rules improve from real outcomes.",
  "thesis": "Effort is the cheaper lever than a second model; Haiku is safe only where a cheap check exists; outcomes show loud failures but not silent ones.",
  "disproof": "If simple-tier runs show a bad-outcome rate above the weekly review's raise threshold (12%), the Haiku tier is too wide.",

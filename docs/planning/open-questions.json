@@ -45,7 +45,7 @@
    "blocks": "the effort cap values for Haiku (low, medium over 200,000 characters)",
    "resolves_with": "Prior art settles it: re-read the two cited pages (optimizing-for-cost-and-intelligence, effort) and compare the numbers. No test needed.",
    "owner": "agent",
-   "status": "open",
+   "status": "resolved",
    "sources": [
     "docs/planning/research-routing-best-practices.md:24",
     "docs/planning/research-routing-best-practices.md:41"
@@ -53,7 +53,8 @@
    "touches": [
     "effort-cap",
     "tier"
-   ]
+   ],
+   "evidence": "Re-read 2026-11-06: platform.claude.com optimizing-for-cost-and-intelligence says Haiku subagents under Opus 5.5 at medium cut cost per attempt 32% and pass rate about 4 points (95% interval 1.3 to 7.1), about what mixing low and medium gives; the same page shows Opus with Haiku subagents scoring F1 0.677 against 0.827-0.850 for Opus alone on defect search, which supports keeping judging agents off Haiku. The effort page says 'In long agent prompts, the model is more likely to skip a search, stop early, or skip a check at low'. Numbers match the research report."
   },
   {
    "id": "Q4",
@@ -62,7 +63,7 @@
    "blocks": "whether README 'Limits' may state that the main-model lever is manual",
    "resolves_with": "Prior art: grep the unread tail of the hooks and model-config pages for setModel, model in hook output and CLAUDE_ENV_FILE.",
    "owner": "agent",
-   "status": "open",
+   "status": "resolved",
    "sources": [
     "docs/planning/research-routing-best-practices.md:64",
     "README.md:77"
@@ -70,7 +71,8 @@
    "touches": [
     "main-model-lever",
     "main-conversation"
-   ]
+   ],
+   "evidence": "Read 2026-11-06 the full hooks page (code.claude.com/docs/en/hooks) and model-config page. PreModelSwitch 'accepts allow, deny and ask; it doesn't accept defer, updatedInput or additionalContext', so it cannot substitute a model. CLAUDE_ENV_FILE (SessionStart) persists variables 'for the shell commands Claude runs later', not Claude Code's own model; $ANTHROPIC_MODEL 'doesn't change when you switch models with /model'. setModel() belongs to the Agent SDK, for apps. No plugin mechanism sets the main model."
   },
   {
    "id": "Q5",
@@ -134,14 +136,15 @@
    "blocks": "any submission of this fork to the plugin directory",
    "resolves_with": "Argument settles it: the fork is installed from a marketplace entry, not submitted to the directory, and a license is the upstream author's choice, not ours. No test needed. Revisit only if Brian wants the fork listed.",
    "owner": "agent",
-   "status": "open",
+   "status": "resolved",
    "sources": [
     "docs/planning/checks.txt:27",
     "README.md:7"
    ],
    "touches": [
     "tier"
-   ]
+   ],
+   "evidence": "By argument: ship's check is 'make check' (claude plugin validate . and claude plugin test .), both exit 0 (docs/planning/checks.txt); the LICENSE refusal appears only under 'claude plugin validate --profile directory', which nothing here runs, and the fork is installed from a marketplace entry, not submitted. A license is the upstream author's call (aott33/model-router has none). Revisit if Brian wants the fork listed in the directory."
   }
  ]
 }
