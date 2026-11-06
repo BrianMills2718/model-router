@@ -27,6 +27,7 @@ Rules on top:
 - **Risk floor.** A task whose agent will do lasting harm (deploy to prod, delete real data, force-push) runs on Opus or higher. Writing such code doesn't count.
 - **Rate limits.** At 80% of your 5-hour or weekly limit, routing goes one tier cheaper. Builders and fixers stay on Sonnet or higher.
 - **Rescue.** A Haiku or Sonnet agent that is stuck (3 failed tool calls in a row, or far too many requests or minutes) moves up one model mid-run.
+- **Pace.** With `pace` on, a 5h or 7d window used faster than its time has passed routes one tier cheaper at 1.25x pace and two tiers at 2x, so the weekly limit lasts until it resets. Same floors as limit pressure; the stronger of the two rules wins.
 - **Budget.** With a session budget set, routing goes one tier cheaper at 80% and to the cheapest allowed model at 100%. Risky tasks still get Opus.
 - **Effort** is only ever lowered, never raised.
 - **Left alone:** models Claude names, forks, workflow agents and teammates.
@@ -67,6 +68,7 @@ A band above the prompt shows each running agent; a status line shows the total.
 | Send risky tasks to Opus | on | |
 | Move up a struggling agent | on | |
 | Route cheaper near rate limits | `80` | `70`, `90` or `off` |
+| Route cheaper when ahead of pace | `off` | `on` |
 | Session budget | `off` | $1, $2, $5, $10, $20 or $50 |
 
 ## Limits

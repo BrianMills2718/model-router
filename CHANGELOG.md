@@ -4,6 +4,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+## [0.8.1-pace.1] - 2026-11-05
+
+### Added
+
+- Setting **Route cheaper when ahead of pace** (`pace`, default `off`). On: a 5h or 7d rate-limit window used faster than its time has passed lowers routing one tier at 1.25x pace and two tiers at 2x (expected use is floored at 5% so a window's first minutes don't explode the ratio). Builders and fixers stay on Sonnet or higher, risky tasks keep Opus, and the stronger of pace and `limitPressure` applies. The Why line gives the numbers and the pane's limit line shows `1.8x pace` and the tiers-down marker.
+
 ### Fixed
 
 - The status line says `no agents routed yet` instead of `$N vs $N unrouted (0% saved)` until an agent is routed. Against the unrouted baseline the main conversation alone can never save anything, so the comparison looked like a fault.

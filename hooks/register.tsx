@@ -32,7 +32,11 @@ import {
   parseMode,
   parseRisky,
   parseTier,
+  type Pace,
+  paceOf,
+  paceOn,
   pressureThreshold,
+  worstPace,
   rescueReason,
   rescueTier,
   roleOf,
@@ -241,7 +245,7 @@ const AGENT_WIDE = 16
  */
 function tierLabel(r: AgentRow): string {
   if (!r.tier || r.via === 'unrouted') return '-'
-  return TIER_WORD[r.tier] + (r.rescued ? '↑' : r.risky ? '!' : r.pressure !== undefined || r.budget !== undefined ? '↓' : '')
+  return TIER_WORD[r.tier] + (r.rescued ? '↑' : r.risky ? '!' : r.pressure !== undefined || r.pace || r.budget !== undefined ? '↓' : '')
 }
 
 /**
@@ -332,6 +336,15 @@ async function windowPercent($: EngineInterface): Promise<number> {
     return fullestWindow((await $.session.usage()).rateLimits)
   } catch {
     return 0
+  }
+}
+
+/** The window furthest ahead of pace; undefined when none, or the call fails. */
+async function currentPace($: EngineInterface, now: number) {
+  try {
+    return worstPace((await $.session.usage()).rateLimits, now)
+  } catch {
+    return undefined
   }
 }
 
@@ -525,6 +538,7 @@ export const register: Register = (on, options) => {
   const budgetLimit = budgetUsd(options.budget)
   const riskFloor = options.riskFloor !== false
   const openAtStart = options.openPane !== false
+  const paceMode = paceOn(options.pace)
   const pressureAt = options.limitPressure === 'off' ? undefined : pressureThreshold(options.limitPressure)
 
   /**
@@ -670,6 +684,7 @@ export const register: Register = (on, options) => {
     let model: string | undefined
     let risky = false
     let pressure: number | undefined
+    let paceHit: Pace | undefined
     let budgetPct: number | undefined
     let why: string
 
@@ -760,6 +775,17 @@ export const register: Register = (on, options) => {
           pressure = pct
         }
       }
+      if (paceMode) {
+        const p = await currentPace($, now)
+        if (p && p.steps > 0) {
+          const lower = routeTier(asked, role, allowLong, { risky, down: p.steps })
+          // Marked only when pace actually moved the agent below what the other rules chose.
+          if (ORDER.indexOf(lower) < ORDER.indexOf(tier)) {
+            tier = lower
+            paceHit = p
+          }
+        }
+      }
       if (budgetLimit !== undefined) {
         const pct = (totals(await read($, ledger), baseline).cost / budgetLimit) * 100
         if (pct >= BUDGET_WARN) {
@@ -779,6 +805,7 @@ export const register: Register = (on, options) => {
         risky,
         allowLong,
         pressure,
+        pace: paceHit,
         cached,
         budget: budgetPct !== undefined && budgetLimit !== undefined ? { pct: budgetPct, usd: budgetLimit } : undefined,
       })
@@ -812,6 +839,7 @@ export const register: Register = (on, options) => {
         effort,
         risky: risky || undefined,
         pressure,
+        pace: paceHit !== undefined || undefined,
         budget: budgetPct,
         why,
         // A model Claude named would have run anyway. A router role runs on its registered
@@ -1036,6 +1064,10 @@ export const register: Register = (on, options) => {
     const hasRescued = shown.some(r => tierLabel(r).endsWith('↑'))
     const hasPressure = shown.some(r => tierLabel(r).endsWith('↓'))
     const hasGuessed = baseline === 'unrouted' && shown.some(r => r.baselineGuessed)
+    const paceSuffix = (w: { kind: string; percentUsed: number; resetsAt?: string }) => {
+      const p = paceMode ? paceOf(w, now) : undefined
+      return p ? `  · ${p.ratio.toFixed(1)}x pace${mode === 'on' && p.steps > 0 ? ` · ${p.steps === 2 ? 'two tiers' : 'one tier'} down` : ''}` : ''
+    }
     const tight = pressureAt !== undefined && m.limits.some(w => w.percentUsed >= pressureAt)
     const rowsCost = Object.values(l.rows).reduce((sum, r) => sum + r.cost, 0)
 
@@ -1120,8 +1152,8 @@ export const register: Register = (on, options) => {
         {m.limits.map(w =>
           field(
             limitName(w.kind),
-            windowGauge(w, now) + (tight && mode === 'on' && pressureAt !== undefined && w.percentUsed >= pressureAt ? '  · one tier down' : ''),
-            pressureAt !== undefined && w.percentUsed >= pressureAt ? 'yellow' : undefined,
+            windowGauge(w, now) + paceSuffix(w) + (tight && mode === 'on' && pressureAt !== undefined && w.percentUsed >= pressureAt ? '  · one tier down' : ''),
+            (pressureAt !== undefined && w.percentUsed >= pressureAt) || (paceMode && (paceOf(w, now)?.steps ?? 0) > 0) ? 'yellow' : undefined,
           ),
         )}
         {budgetLimit !== undefined &&
@@ -1173,7 +1205,7 @@ export const register: Register = (on, options) => {
             <Text dimColor wrap="wrap">Why: ctrl+x tab, then a number. Esc: back</Text>
             {hasRescued && <Text dimColor>↑ moved up a model after struggling</Text>}
             {hasRisky && <Text dimColor>! risky: sent to Opus at least</Text>}
-            {hasPressure && <Text dimColor>↓ moved down for rate limits or budget</Text>}
+            {hasPressure && <Text dimColor>↓ moved down for rate limits, pace or budget</Text>}
             {hasGuessed && <Text dimColor>~ guessed: this agent type's own model isn't known yet</Text>}
             <Text dimColor wrap="wrap">
               Dim rows are not routed. API list prices; plans billed by subscription see rate-limit use, not dollars.

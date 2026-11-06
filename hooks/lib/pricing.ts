@@ -220,7 +220,7 @@ export function routeTier(
   tier: Tier,
   role: string | undefined,
   allowLong: boolean,
-  o: { risky?: boolean; underPressure?: boolean; cheapest?: boolean } = {},
+  o: { risky?: boolean; underPressure?: boolean; cheapest?: boolean; down?: number } = {},
 ): Tier {
   // The budget is spent: the cheapest tier the role allows. Only the risk floor goes higher.
   if (o.cheapest) {
@@ -229,7 +229,9 @@ export function routeTier(
   }
   const i = ORDER.indexOf(tier)
   const floor = role && PRESSURE_FLOOR[role] ? Math.min(i, ORDER.indexOf(PRESSURE_FLOOR[role]!)) : 0
-  let t = clampTier(o.underPressure ? ORDER[Math.max(floor, i - 1)]! : tier, role, allowLong && !o.underPressure)
+  // `down` is how many tiers to drop (pace); `underPressure` is the one-tier rule.
+  const down = Math.max(o.down ?? 0, o.underPressure ? 1 : 0)
+  let t = clampTier(down > 0 ? ORDER[Math.max(floor, i - down)]! : tier, role, allowLong && down === 0)
   if (o.risky && ORDER.indexOf(t) < ORDER.indexOf('hard')) t = 'hard'
   return t
 }
@@ -286,6 +288,60 @@ export function fullestWindow(limits: readonly { percentUsed: number }[] | undef
   return (limits ?? []).reduce((m, l) => Math.max(m, l.percentUsed), 0)
 }
 
+/** Window lengths the pace rule knows; other kinds are skipped. */
+const PACE_WINDOW_MS: Record<string, number> = { five_hour: 5 * 3_600_000, seven_day: 7 * 86_400_000 }
+/** The least "expected use" a pace ratio divides by, so a window's first minutes don't explode it. */
+export const PACE_MIN_EXPECTED = 5
+/** Ahead-of-pace ratios at which routing goes one and two tiers cheaper. */
+export const PACE_ONE_DOWN = 1.25
+export const PACE_TWO_DOWN = 2
+
+export type Pace = {
+  kind: string
+  percentUsed: number
+  /** Share of the window elapsed, in percent. */
+  expected: number
+  ratio: number
+  /** Tiers to drop: 0, 1 or 2. */
+  steps: 0 | 1 | 2
+}
+
+/** The pace of one rate-limit window; undefined without a usable `resetsAt`, for an unknown kind, or once it has passed. */
+export function paceOf(l: { kind: string; percentUsed: number; resetsAt?: string }, now: number): Pace | undefined {
+  const len = PACE_WINDOW_MS[l.kind]
+  const resets = l.resetsAt ? Date.parse(l.resetsAt) : NaN
+  if (!len || !Number.isFinite(resets) || resets <= now) return undefined
+  const expected = Math.max(0, Math.min(100, (1 - (resets - now) / len) * 100))
+  const ratio = l.percentUsed / Math.max(expected, PACE_MIN_EXPECTED)
+  return { kind: l.kind, percentUsed: l.percentUsed, expected, ratio, steps: ratio >= PACE_TWO_DOWN ? 2 : ratio >= PACE_ONE_DOWN ? 1 : 0 }
+}
+
+/** The window furthest ahead of pace, or undefined when none has a pace. */
+export function worstPace(
+  limits: readonly { kind: string; percentUsed: number; resetsAt?: string }[] | undefined,
+  now: number,
+): Pace | undefined {
+  let worst: Pace | undefined
+  for (const l of limits ?? []) {
+    const p = paceOf(l, now)
+    if (p && (!worst || p.ratio > worst.ratio)) worst = p
+  }
+  return worst
+}
+
+/** `7d window 10% used at 3% of the week: 3.3x pace, two tiers down`. */
+export function paceText(p: Pace): string {
+  const name = p.kind === 'five_hour' ? '5h' : '7d'
+  const span = p.kind === 'five_hour' ? 'window' : 'week'
+  const down = p.steps === 2 ? ', two tiers down' : p.steps === 1 ? ', one tier down' : ''
+  return `${name} window ${Math.round(p.percentUsed)}% used at ${Math.round(p.expected)}% of the ${span}: ${p.ratio.toFixed(1)}x pace${down}`
+}
+
+/** The `pace` setting: true only for `on`. */
+export function paceOn(setting: unknown): boolean {
+  return setting === 'on' || setting === true
+}
+
 /** The `limitPressure` setting as a percentage, or undefined when off. */
 export function pressureThreshold(setting: unknown): number | undefined {
   const n = Number(setting ?? 80)
@@ -328,6 +384,8 @@ export function explainTier(o: {
   risky: boolean
   allowLong: boolean
   pressure?: number
+  /** The window furthest ahead of pace, when pace lowered the agent. */
+  pace?: Pace
   /** The session's spend as a share of its budget, when the budget moved the agent. */
   budget?: { pct: number; usd: number }
   cached?: boolean
@@ -345,6 +403,7 @@ export function explainTier(o: {
   if (o.asked === 'long' && !o.allowLong) rules.push('long work not asked for')
   if (o.risky && o.final === 'hard' && ORDER.indexOf(o.asked) < ORDER.indexOf('hard')) rules.push('risk floor')
   if (o.pressure !== undefined) rules.push(`limits ${Math.round(o.pressure)}%: one tier down`)
+  if (o.pace) rules.push(`lowered for pace: ${paceText(o.pace)}`)
   if (o.budget)
     rules.push(
       o.budget.pct >= 100
