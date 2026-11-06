@@ -76,7 +76,7 @@ A band above the prompt shows each running agent; a status line shows the total.
 
 ## Limits
 
-- Only subagents are routed. The main conversation keeps your model. A plugin cannot change the main session's model or effort (research report section 1.4); the levers are the `model` default in `~/.claude/settings.json` (set to sonnet) and `/model` or `/effort` mid-session. Main conversations were $506 of $1,031 on 2026-11-05, $450 of it Opus, so that default matters more than any subagent rule. The daily report has a main-conversation line showing the Opus share and what the same tokens cost on Sonnet.
+- Only subagents are routed. The main conversation keeps your model. A plugin cannot change the main session's model or effort (Claude Code's hooks and model-config pages, read 2026-11-06: a `PreModelSwitch` hook can only allow, deny or ask about a switch, and `CLAUDE_ENV_FILE` sets variables for shell commands, not the session model); the levers are the `model` default in `~/.claude/settings.json` (set to sonnet) and `/model` or `/effort` mid-session. Main conversations were $514 of $1,056 on 2026-11-05, $454 of it Opus (88%), so that default matters more than any subagent rule. The daily report has a main-conversation line showing the Opus share and what the same tokens cost on Sonnet.
 - Dollar figures use API list prices. On Pro or Max they're API-equivalent; the real saving is rate-limit headroom.
 - "Saved" assumes the same tokens on another model, so it's an estimate.
 - A rescue re-reads the agent's context at the new model's price.
