@@ -27,6 +27,8 @@ export type AgentRow = {
   risky?: boolean
   /** The fullest rate-limit window, in percent, when it pushed this agent a tier down. */
   pressure?: number
+  /** True when running ahead of pace in a rate-limit window pushed this agent down. */
+  pace?: boolean
   /** The most effort this agent's requests may ask for; absent when the router leaves effort alone. */
   effort?: Effort
   /** What this agent would have run on without the router: the parent's model, or its own when unrouted. */

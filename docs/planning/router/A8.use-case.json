@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A8",
+ "title": "When I or a session accepts a proposed tier change, the rule actually changes and the decision shows who accepted it and why.",
+ "stakeholder": "Brian",
+ "concern": "When I or a session accepts a proposed tier change, the rule actually changes and the decision shows who accepted it and why.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}

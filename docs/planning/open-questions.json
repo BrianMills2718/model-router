@@ -1,0 +1,201 @@
+{
+ "schema_version": "1.0",
+ "record_type": "open_questions",
+ "questions": [
+  {
+   "id": "Q1",
+   "short": "Do Haiku rules hold in live use?",
+   "question": "Does the new easy-tier rubric (Haiku only for mechanical work with a cheap check, effort low, medium on long prompts) send only safe work to Haiku in live sessions?",
+   "blocks": "whether the next plan widens the Haiku tier or narrows it",
+   "resolves_with": "No argument settles it, because the rubric has not yet run in a session that loaded it. Read the first week of simple-tier rows in ~/projects/data/logs/router/*.tsv and the weekly review, then read a sample of simple-tier transcripts in full; the result changes the Haiku share rule and nothing else.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "hooks/lib/pricing.ts:53",
+    "docs/planning/research-routing-best-practices.md:106"
+   ],
+   "touches": [
+    "tier",
+    "classifier-verdict",
+    "effort-cap"
+   ]
+  },
+  {
+   "id": "Q2",
+   "short": "Do outcome signals miss silent errors?",
+   "question": "The outcome labels (failed tools, rescued, redone, fixer started within 30 minutes) catch loud failure; how often does a Haiku or Sonnet run give a wrong answer none of them sees?",
+   "blocks": "whether the weekly review may propose lowering a tier on a clean week",
+   "resolves_with": "Argument settles the direction: absence of a retry is weak evidence, and the review already says so. Sampling traces is the only way to measure the rate, so lowering proposals carry 'read these traces' and a session samples before accepting.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "docs/planning/research-routing-best-practices.md:130",
+    "docs/planning/evidence/router-weekly-review-sample.md:3"
+   ],
+   "touches": [
+    "outcome-signal",
+    "weekly-review",
+    "tier-decision"
+   ]
+  },
+  {
+   "id": "Q3",
+   "short": "Research claims not yet re-checked",
+   "question": "The research report marks its Haiku figures (32% cost saved for about 4 points of pass rate; low effort skips checks in long prompts) as read from Anthropic pages but says load-bearing claims need a re-check; do the pages still say that?",
+   "blocks": "the effort cap values for Haiku (low, medium over 200,000 characters)",
+   "resolves_with": "Prior art settles it: re-read the two cited pages (optimizing-for-cost-and-intelligence, effort) and compare the numbers. No test needed.",
+   "owner": "agent",
+   "status": "resolved",
+   "sources": [
+    "docs/planning/research-routing-best-practices.md:24",
+    "docs/planning/research-routing-best-practices.md:41"
+   ],
+   "touches": [
+    "effort-cap",
+    "tier"
+   ],
+   "evidence": "Re-read 2026-11-06: platform.claude.com optimizing-for-cost-and-intelligence says Haiku subagents under Opus 5.5 at medium cut cost per attempt 32% and pass rate about 4 points (95% interval 1.3 to 7.1), about what mixing low and medium gives; the same page shows Opus with Haiku subagents scoring F1 0.677 against 0.827-0.850 for Opus alone on defect search, which supports keeping judging agents off Haiku. The effort page says 'In long agent prompts, the model is more likely to skip a search, stop early, or skip a check at low'. Numbers match the research report."
+  },
+  {
+   "id": "Q4",
+   "short": "Can a plugin set the main model?",
+   "question": "Can any plugin mechanism set the main conversation's model or effort? The report read only the first 100k of 288k characters of the hooks reference and says to grep the tail for setModel and CLAUDE_ENV_FILE before relying on 'impossible'.",
+   "blocks": "whether README 'Limits' may state that the main-model lever is manual",
+   "resolves_with": "Prior art: grep the unread tail of the hooks and model-config pages for setModel, model in hook output and CLAUDE_ENV_FILE.",
+   "owner": "agent",
+   "status": "resolved",
+   "sources": [
+    "docs/planning/research-routing-best-practices.md:64",
+    "README.md:77"
+   ],
+   "touches": [
+    "main-model-lever",
+    "main-conversation"
+   ],
+   "evidence": "Read 2026-11-06 the full hooks page (code.claude.com/docs/en/hooks) and model-config page. PreModelSwitch 'accepts allow, deny and ask; it doesn't accept defer, updatedInput or additionalContext', so it cannot substitute a model. CLAUDE_ENV_FILE (SessionStart) persists variables 'for the shell commands Claude runs later', not Claude Code's own model; $ANTHROPIC_MODEL 'doesn't change when you switch models with /model'. setModel() belongs to the Agent SDK, for apps. No plugin mechanism sets the main model."
+  },
+  {
+   "id": "Q5",
+   "short": "Who applies a tier decision?",
+   "question": "When a session accepts a weekly decision (for example lower general-purpose from hard to standard), does it edit the tier rules directly and ship, or does a pull request wait for Brian?",
+   "blocks": "whether accepted decisions change the rules without further review",
+   "resolves_with": "A business and priority call about how much change goes unreviewed; Brian decides. Agents decide technical tradeoffs, so this asks only about review of routing changes that spend his limits.",
+   "owner": "brian",
+   "status": "open",
+   "recommendation": "An agent session accepts or rejects each decision after reading the traces, ships the rule change through ship, and records the decision; Brian reads the weekly page only if he wants to.",
+   "default": "Recommendation applies: the session that reads the weekly review decides and ships; nothing waits for Brian.",
+   "blocking": false,
+   "sources": [
+    "README.md:87",
+    "docs/planning/evidence/router-weekly-review-sample.md:34"
+   ],
+   "touches": [
+    "tier-decision",
+    "weekly-review"
+   ]
+  },
+  {
+   "id": "Q6",
+   "short": "Is the report's redo match right?",
+   "question": "After matching a redo on identical task text instead of the description stem, are planned rounds no longer flagged and real repeats still caught?",
+   "blocks": "trusting the redo count in the weekly review",
+   "resolves_with": "One counterexample settles it. The 2026-11-05 report went from 3 redos to 0, and the new test asserts a planned round is not a redo while an identical-task repeat is.",
+   "owner": "agent",
+   "status": "resolved",
+   "evidence": "/home/brian/code2/workspace/tests/test_router_report.py (a planned round is not a redo; an identical task is); report for 2026-11-05 shows Redos: 0 (docs/planning/evidence/router-report-2026-11-05.md:7)",
+   "sources": [
+    "docs/planning/evidence/router-report-2026-11-05.md:7"
+   ],
+   "touches": [
+    "redo",
+    "daily-report"
+   ]
+  },
+  {
+   "id": "Q7",
+   "short": "Do judging agents stay off Haiku?",
+   "question": "Can pace, rate-limit pressure or the classifier push an architect, Plan, reviewer, researcher or *-reviewer agent onto Haiku?",
+   "blocks": "the rule 'design, review and anything Brian reads never go to Haiku'",
+   "resolves_with": "A test settles it: the router tests drive each judging type through the pressure paths.",
+   "owner": "agent",
+   "status": "resolved",
+   "evidence": "hooks/router.test.ts:106 'judging agents never go to Haiku' passes in the 118-test run (claude plugin test ., exit 0, docs/planning/checks.txt)",
+   "sources": [
+    "hooks/router.test.ts:106",
+    "hooks/lib/pricing.ts:245"
+   ],
+   "touches": [
+    "judging-agent",
+    "pressure"
+   ]
+  },
+  {
+   "id": "Q8",
+   "short": "Fork has no LICENSE",
+   "question": "The plugin directory check refuses a submission without a LICENSE; the fork and its upstream (aott33/model-router) have none. Does that matter?",
+   "blocks": "any submission of this fork to the plugin directory",
+   "resolves_with": "Argument settles it: the fork is installed from a marketplace entry, not submitted to the directory, and a license is the upstream author's choice, not ours. No test needed. Revisit only if Brian wants the fork listed.",
+   "owner": "agent",
+   "status": "resolved",
+   "sources": [
+    "docs/planning/checks.txt:27",
+    "README.md:7"
+   ],
+   "touches": [
+    "tier"
+   ],
+   "evidence": "By argument: ship's check is 'make check' (claude plugin validate . and claude plugin test .), both exit 0 (docs/planning/checks.txt); the LICENSE refusal appears only under 'claude plugin validate --profile directory', which nothing here runs, and the fork is installed from a marketplace entry, not submitted. A license is the upstream author's call (aott33/model-router has none). Revisit if Brian wants the fork listed in the directory."
+  },
+  {
+   "id": "Q9",
+   "short": "Does the Sonnet default apply everywhere?",
+   "question": "Does the ~/.claude/settings.json model: sonnet default actually apply across sessions and machines?",
+   "blocks": "acceptance criterion A3 (a new session starts on Sonnet)",
+   "resolves_with": "Observation: read the settings file on this machine (done: line 12 reads \"model\": \"sonnet\") and start a new session and check /model. Other machines are unknown until checked on each.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "/home/brian/.claude/settings.json:12",
+    "README.md:77"
+   ],
+   "touches": [
+    "main-model-lever",
+    "main-conversation"
+   ]
+  },
+  {
+   "id": "Q10",
+   "short": "Are the 12% and 3% thresholds calibrated?",
+   "question": "Are the 12% raise and 3% lower thresholds calibrated for samples of 10 and 30 runs?",
+   "blocks": "accepting any weekly decision",
+   "resolves_with": "Argument with a computed interval (Wilson 95%): 2 bad of 10 runs (20%) has a true-rate interval of 5.7% to 51%; 3 of 10 is 10.8% to 60%; 0 bad of 30 runs has 0% to 11.4%; 1 of 30 is 0.6% to 16.7%. So one week cannot separate a 3% rule from a 12% one, and 0 of 30 cannot rule out a rate near the 12% raise line.",
+   "owner": "agent",
+   "status": "resolved",
+   "evidence": "Computed 2026-11-06 (Wilson score interval, z=1.96): 0/30 -> 0.0-11.4%, 1/30 -> 0.6-16.7%, 2/10 -> 5.7-51.0%, 3/10 -> 10.8-60.3%. Conclusion: the thresholds are screens for what to read, not proof. A proposal is never accepted on the rate alone; the review already carries 'read these traces' and a clean week is called weak evidence (docs/planning/evidence/router-weekly-review-sample.md:3). Consequence kept in the plan: accept a lowering only after a session reads sampled traces, and let evidence accumulate across weeks.",
+   "sources": [
+    "/home/brian/code2/workspace/scripts/router_review.py:63",
+    "docs/planning/evidence/router-weekly-review-sample.md:3"
+   ],
+   "touches": [
+    "tier-decision",
+    "weekly-review"
+   ]
+  },
+  {
+   "id": "Q11",
+   "short": "Is the classifier's cost measured?",
+   "question": "Is the classifier's cost ever measured?",
+   "blocks": "the cost_basis label for the classifier step (now a worked-out estimate)",
+   "resolves_with": "Log query: the logs do not record classifications, so no per-call figure exists. The only measured number is the claude-haiku-5-5 row in the 2026-11-05 report ($0.03 main, $0.34 subagents, $0.37 in total), which mixes classifier and other Haiku use. The fix is to log each classification, then compute cost per call.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "docs/planning/evidence/router-report-2026-11-05.md:13",
+    "hooks/register.tsx:733"
+   ],
+   "touches": [
+    "classifier-verdict"
+   ]
+  }
+ ]
+}

@@ -53,8 +53,21 @@ const EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']
 export const EFFORT_CAP: Record<Tier, Effort | undefined> = {
   simple: 'low',
   standard: 'medium',
-  hard: undefined,
+  hard: 'high',
   long: undefined,
+}
+
+/**
+ * A prompt this long (about 50k tokens) lifts Haiku's cap from low to medium: Anthropic says
+ * at low in long agent prompts Haiku 5.5 "is more likely to skip a search, stop early, or skip a check".
+ * Source: inferred by agent from the Haiku 5.5 effort guidance (#162 research, section 1.2).
+ */
+export const LONG_PROMPT_CHARS = 200_000
+
+/** The cap for a tier, given the size of the prompt the agent starts with. */
+export function effortCapFor(tier: Tier, promptChars = 0): Effort | undefined {
+  if (tier === 'simple' && promptChars > LONG_PROMPT_CHARS) return 'medium'
+  return EFFORT_CAP[tier]
 }
 
 /**
@@ -169,6 +182,21 @@ export const ROLE_LIMITS: Record<string, { min?: Tier; max?: Tier; fallback: Tie
   builder: { fallback: 'standard' },
   runner: { max: 'standard', fallback: 'simple' },
   fixer: { min: 'standard', fallback: 'standard' },
+  // Agents that judge, review or design (any plugin's): never Haiku. A wrong approval or plan is silent.
+  judge: { min: 'standard', fallback: 'standard' },
+}
+
+/**
+ * Agent types whose output is a judgment or a design, so errors are silent and no cheap check
+ * catches them. They get the `judge` limits: Haiku never, whoever installed them.
+ * Matched on the agent type's name (an identifier), not on task prose.
+ * Source: Brian, 2026-11-06 on #162: "haiku in some places"; design, review and anything he reads
+ * stay off Haiku is inferred by agent from the research (silent-error class, section 4).
+ */
+const JUDGE_TYPES = new Set(['architect', 'plan', 'reviewer', 'code-review', 'project-brain', 'researcher'])
+export function judgeRoleOf(agentType: string): string | undefined {
+  const name = (agentType.split(':').pop() ?? '').toLowerCase()
+  return JUDGE_TYPES.has(name) || name.endsWith('-reviewer') ? 'judge' : undefined
 }
 
 export function roleOf(agentType: string): string | undefined {
@@ -214,13 +242,13 @@ export function asksForLongRun(text: string): boolean {
  * from Sonnet to Haiku stalled for 56 minutes on a subtle bug in a live run; easy work the
  * classifier already put on Haiku stays there.
  */
-export const PRESSURE_FLOOR: Record<string, Tier> = { builder: 'standard', fixer: 'standard' }
+export const PRESSURE_FLOOR: Record<string, Tier> = { builder: 'standard', fixer: 'standard', judge: 'standard' }
 
 export function routeTier(
   tier: Tier,
   role: string | undefined,
   allowLong: boolean,
-  o: { risky?: boolean; underPressure?: boolean; cheapest?: boolean } = {},
+  o: { risky?: boolean; underPressure?: boolean; cheapest?: boolean; down?: number } = {},
 ): Tier {
   // The budget is spent: the cheapest tier the role allows. Only the risk floor goes higher.
   if (o.cheapest) {
@@ -229,7 +257,9 @@ export function routeTier(
   }
   const i = ORDER.indexOf(tier)
   const floor = role && PRESSURE_FLOOR[role] ? Math.min(i, ORDER.indexOf(PRESSURE_FLOOR[role]!)) : 0
-  let t = clampTier(o.underPressure ? ORDER[Math.max(floor, i - 1)]! : tier, role, allowLong && !o.underPressure)
+  // `down` is how many tiers to drop (pace); `underPressure` is the one-tier rule.
+  const down = Math.max(o.down ?? 0, o.underPressure ? 1 : 0)
+  let t = clampTier(down > 0 ? ORDER[Math.max(floor, i - down)]! : tier, role, allowLong && down === 0)
   if (o.risky && ORDER.indexOf(t) < ORDER.indexOf('hard')) t = 'hard'
   return t
 }
@@ -286,6 +316,60 @@ export function fullestWindow(limits: readonly { percentUsed: number }[] | undef
   return (limits ?? []).reduce((m, l) => Math.max(m, l.percentUsed), 0)
 }
 
+/** Window lengths the pace rule knows; other kinds are skipped. */
+const PACE_WINDOW_MS: Record<string, number> = { five_hour: 5 * 3_600_000, seven_day: 7 * 86_400_000 }
+/** The least "expected use" a pace ratio divides by, so a window's first minutes don't explode it. */
+export const PACE_MIN_EXPECTED = 5
+/** Ahead-of-pace ratios at which routing goes one and two tiers cheaper. */
+export const PACE_ONE_DOWN = 1.25
+export const PACE_TWO_DOWN = 2
+
+export type Pace = {
+  kind: string
+  percentUsed: number
+  /** Share of the window elapsed, in percent. */
+  expected: number
+  ratio: number
+  /** Tiers to drop: 0, 1 or 2. */
+  steps: 0 | 1 | 2
+}
+
+/** The pace of one rate-limit window; undefined without a usable `resetsAt`, for an unknown kind, or once it has passed. */
+export function paceOf(l: { kind: string; percentUsed: number; resetsAt?: string }, now: number): Pace | undefined {
+  const len = PACE_WINDOW_MS[l.kind]
+  const resets = l.resetsAt ? Date.parse(l.resetsAt) : NaN
+  if (!len || !Number.isFinite(resets) || resets <= now) return undefined
+  const expected = Math.max(0, Math.min(100, (1 - (resets - now) / len) * 100))
+  const ratio = l.percentUsed / Math.max(expected, PACE_MIN_EXPECTED)
+  return { kind: l.kind, percentUsed: l.percentUsed, expected, ratio, steps: ratio >= PACE_TWO_DOWN ? 2 : ratio >= PACE_ONE_DOWN ? 1 : 0 }
+}
+
+/** The window furthest ahead of pace, or undefined when none has a pace. */
+export function worstPace(
+  limits: readonly { kind: string; percentUsed: number; resetsAt?: string }[] | undefined,
+  now: number,
+): Pace | undefined {
+  let worst: Pace | undefined
+  for (const l of limits ?? []) {
+    const p = paceOf(l, now)
+    if (p && (!worst || p.ratio > worst.ratio)) worst = p
+  }
+  return worst
+}
+
+/** `7d window 10% used at 3% of the week: 3.3x pace, two tiers down`. */
+export function paceText(p: Pace): string {
+  const name = p.kind === 'five_hour' ? '5h' : '7d'
+  const span = p.kind === 'five_hour' ? 'window' : 'week'
+  const down = p.steps === 2 ? ', two tiers down' : p.steps === 1 ? ', one tier down' : ''
+  return `${name} window ${Math.round(p.percentUsed)}% used at ${Math.round(p.expected)}% of the ${span}: ${p.ratio.toFixed(1)}x pace${down}`
+}
+
+/** The `pace` setting: true only for `on`. */
+export function paceOn(setting: unknown): boolean {
+  return setting === 'on' || setting === true
+}
+
 /** The `limitPressure` setting as a percentage, or undefined when off. */
 export function pressureThreshold(setting: unknown): number | undefined {
   const n = Number(setting ?? 80)
@@ -328,6 +412,8 @@ export function explainTier(o: {
   risky: boolean
   allowLong: boolean
   pressure?: number
+  /** The window furthest ahead of pace, when pace lowered the agent. */
+  pace?: Pace
   /** The session's spend as a share of its budget, when the budget moved the agent. */
   budget?: { pct: number; usd: number }
   cached?: boolean
@@ -345,6 +431,7 @@ export function explainTier(o: {
   if (o.asked === 'long' && !o.allowLong) rules.push('long work not asked for')
   if (o.risky && o.final === 'hard' && ORDER.indexOf(o.asked) < ORDER.indexOf('hard')) rules.push('risk floor')
   if (o.pressure !== undefined) rules.push(`limits ${Math.round(o.pressure)}%: one tier down`)
+  if (o.pace) rules.push(`lowered for pace: ${paceText(o.pace)}`)
   if (o.budget)
     rules.push(
       o.budget.pct >= 100
@@ -429,7 +516,7 @@ export function parseTier(text: string): Tier | undefined {
 
 export const CLASSIFIER_SYSTEM = `You route coding subagent tasks to a model. Read the task and reply with exactly one word.
 
-simple   - mechanical, little judgment: rename, find/search/grep, list files, run an existing test or build command and report, format, small single-file edits with an obvious answer.
+simple   - mechanical fan-out with a cheap check on the result: rename, find/search/grep, list files, summarize logs or test output, run an existing test, lint or build command and report, format, version bumps, small single-file edits with an obvious answer. Never simple: designing, planning, reviewing or judging work, finding a root cause, or writing something a person will read as the final answer.
 standard - most coding work: implement, plan or review a feature or fix, write tests, refactor across several files, fix a bug whose failure is known, follow a detailed plan. Long or detailed instructions do not make a task harder; they make it easier.
 hard     - only when the problem itself needs deep reasoning: a bug whose cause is unknown and intermittent or cross-cutting, concurrency or race conditions, a security audit, performance tuning, a design with real trade-offs between competing approaches, a data migration with subtle risk. Planning a change whose steps the task already spells out is standard.
 long     - only when the task explicitly asks for long-running or unattended multi-hour work, such as a large build or migration left to run overnight. Running in the background is not long.

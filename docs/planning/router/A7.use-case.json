@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A7",
+ "title": "A planned second review round is not reported as a redo.",
+ "stakeholder": "Brian",
+ "concern": "A planned second review round is not reported as a redo.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}

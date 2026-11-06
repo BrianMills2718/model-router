@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is inside the plugin, and what talks to it? (context view)</title><style>
+body { font: 16px/1.5 system-ui, sans-serif; margin: 0 16px; color: #1b1f24; background: #fff; }
+main { max-width: 1140px; min-width: 0; margin: 0 auto; padding: 20px 0 64px; }
+h1 { font-size: 26px; margin: 8px 0; } h2 { font-size: 21px; margin-top: 40px; border-bottom: 2px solid #0b3d6b; padding-bottom: 6px; }
+h2 .n { color: #0b3d6b; margin-right: 6px; } h2 .sub { font-weight: 400; } h3 { font-size: 17px; margin-top: 24px; }
+.wide { overflow-x: auto; max-width: 100%; } .doc, pre { overflow-x: auto; max-width: 100%; } img, svg { max-width: 100%; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+th, td { border: 1px solid #c9ced4; padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #eef1f4; } code { font-size: 13px; word-break: break-all; }
+.doc td:first-child { white-space: normal; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-weight: 600; font-size: 13px; max-width: 100%; }
+:not(.wide) > table { display: block; overflow-x: auto; max-width: 100%; }
+.ok { background: #d6e6f7; color: #0b3d6b; border: 1px solid #0b3d6b; }
+.open { background: #fde3c4; color: #7a3300; border: 1px dashed #7a3300; }
+.todo { background: #e4e7eb; color: #3d4450; border: 1px solid #3d4450; }
+.star { border: 2px solid #e8892b; border-radius: 8px; padding: 8px 16px; background: #fff6ec; margin: 16px 0; }
+.sum { border: 2px solid #0b3d6b; border-radius: 8px; padding: 8px 16px; background: #eef4fb; margin: 16px 0; }
+.sum h3 { margin: 10px 0 2px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: #0b3d6b; }
+.sum p { margin: 0 0 6px; }
+.status { font-size: 15px; margin: 10px 0; } .status b { font-size: 16px; }
+.frame { height: 520px; border: 1px solid #c9ced4; border-radius: 6px; margin: 8px 0 6px; overflow: hidden; }
+.mermaid { background: #fff; border: 1px solid #c9ced4; border-radius: 6px; padding: 10px; overflow-x: auto; }
+.doc { border: 1px solid #c9ced4; border-radius: 6px; padding: 2px 16px; margin: 8px 0 16px; }
+details { margin: 10px 0; border: 1px solid #c9ced4; border-radius: 6px; padding: 2px 12px; }
+details > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+nav.top { font-size: 14px; line-height: 1.9; padding: 8px 0; border-bottom: 1px solid #c9ced4; }
+.note { color: #3d4450; font-size: 14px; } .smallnote { margin-top: 0; color: #7a3300; }
+.missing { color: #7a3300; } .quote { border-left: 4px solid #0b3d6b; padding-left: 12px; color: #3d4450; }
+table.ladder td:first-child { font-weight: 700; text-align: center; width: 3em; }
+.adr { border-left: 4px solid #0b3d6b; padding: 2px 12px; margin: 14px 0; } .adr h3 { margin-top: 8px; }
+.adr .who { font-size: 14px; color: #3d4450; margin: 2px 0; }
+.matrix td, .matrix th { text-align: center; padding: 4px 5px; font-size: 12px; white-space: nowrap; overflow-wrap: normal; }
+.m-yes { background: #d6e6f7; color: #0b3d6b; font-weight: 600; } .m-part { background: #fde3c4; color: #7a3300; font-weight: 600; }
+.hub { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 18px 0; }
+.card { border: 1px solid #c9ced4; border-radius: 8px; padding: 10px 16px; }
+.card h2 { border: 0; margin: 4px 0 6px; font-size: 18px; }
+.card ul { padding-left: 18px; margin: 6px 0; } .card li { margin: 4px 0; }
+.full { position: fixed; inset: 0; } .full .bar { height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 16px 0 150px; background: #0b3d6b; color: #fff; font-size: 15px; overflow: hidden; white-space: nowrap; }
+.full .bar a { color: #fff; } .full #graph { position: absolute; top: 44px; left: 0; right: 0; bottom: 0; }
+.fulldoc .bar { position: sticky; top: 0; z-index: 2; padding-left: 16px; }
+@media (max-width: 700px) { .full .bar { padding-left: 110px; font-size: 13px; } td { min-width: 6em; } }
+</style></head><body>
+<div class="fulldoc"><div class="bar full-bar" style="background:#0b3d6b;color:#fff;padding:10px 16px"><b>What is inside the plugin, and what talks to it? (context view)</b> <a style=color:#fff href="index.html">All views</a> <a style=color:#fff href="review.html">Review the plan</a></div><main><p class="note">Question it answers: What is inside the plugin, and what talks to it? (context view) · source <a href="https://github.com/BrianMills2718/model-router/blob/main/docs/planning/SYSTEM.md"><code>docs/planning/SYSTEM.md</code></a></p><div class="doc" id="diagram"></div></main></div>
+<script type="application/json" id="page-data">{"md": {"diagram": {"text": "# model-router system model\n\nSource for every line: the file named beside it, read at the revision this package describes.\n\n## What it is\n\nA Claude Code plugin (a \"mod\", TypeScript, run by Claude Code's plugin engine) that sits on the subagent-start hook. For each subagent it picks a model and a reasoning-effort cap, shows the cost in a pane, and moves a stuck agent up a model. It does not touch the main conversation (README.md \"Limits\"; research-routing-best-practices.md section 1.4).\n\n## Context view: what is inside and what talks to it\n\n```mermaid\nflowchart LR\n  Brian([Brian]) -- \"/router, /config, /model\" --> CC[Claude Code]\n  CC -- \"subagent start: type, description, prompt\" --> R\n  subgraph R[model-router plugin]\n    CL[classifier<br/>Haiku 5.5, hooks/register.tsx]\n    RT[tier rules<br/>hooks/lib/pricing.ts]\n    CA[(verdict cache)]\n    LG[(session ledger<br/>cost per agent)]\n    PN[pane + status line]\n  end\n  CL -- \"tier + risky\" --> RT\n  CL <--> CA\n  RT -- \"model + effort cap\" --> CC\n  CC -- \"requests, usage, rate limits\" --> LG\n  LG --> PN\n  CC -- \"session transcripts<br/>~/.claude/projects\" --> RP[router_report.py<br/>code2-workspace]\n  RP -- \"day.tsv + day.md\" --> LOGS[(~/projects/data/logs/router)]\n  LOGS --> RV[router_review.py<br/>Mondays 07:50]\n  RV -- \"proposed tier-rule decisions\" --> WK[(weekly/week.md)]\n  WK -- \"a session reads, accepts or rejects\" --> Brian\n  Brian -- \"edits tier rules\" --> RT\n```\n\n## What it stores, changes, records and shows\n\n| Thing | Where | Kept |\n| --- | --- | --- |\n| Mode (`on`, `off`, `haiku`, `sonnet`, `opus`) | engine storage via `storedMode` (hooks/register.tsx:423) | across sessions |\n| Verdict cache (task key to tier and risky flag) | engine storage via `rememberClass` (hooks/register.tsx:512) | across sessions |\n| Learned model per agent type | `rememberTypeModel` (hooks/register.tsx:452) | across sessions |\n| Ledger of agents, tokens, cost | engine ledger summed by `totals` (hooks/register.tsx:117), shown in the pane | the session; `/router reset` clears |\n| Daily report, one row per run with `tier` and `outcome` | `~/projects/data/logs/router/<day>.tsv`, `.md` (written by `scripts/router_report.py` in code2-workspace) | append per day |\n| Weekly review with proposed decisions | `~/projects/data/logs/router/weekly/<week>.md` (`scripts/router_review.py`) | one file per week |\n\n## What it changes\n\nAt subagent start it rewrites the agent's model, and caps its effort at the tier's cap (hooks/register.tsx:820). Order of rules, from the task to the final tier: classifier verdict, role limits (`ROLE_LIMITS`, hooks/lib/pricing.ts:180), judging-agent floor (hooks/lib/pricing.ts:196), risk floor, then the cheaper-tier pressures (rate limit, pace, budget), each held above `PRESSURE_FLOOR` (hooks/lib/pricing.ts:245). Mid-run it can rescue a stuck agent one model up (hooks/register.tsx:264).\n\n## Tier and effort table (this package's subject)\n\n| Tier | Model | Effort cap | Basis |\n| --- | --- | --- | --- |\n| easy (`simple`) | Haiku 5.5 | low; medium when the prompt is over 200,000 characters (about 50k tokens) | hooks/lib/pricing.ts:53-70 |\n| normal (`standard`) | Sonnet 5.5 | medium | hooks/lib/pricing.ts:53 |\n| hard | Opus 5.5 | high | hooks/lib/pricing.ts:53 |\n| long | Fable 5.1 | unchanged | hooks/lib/pricing.ts:53 |\n\n## Does it execute typed rules?\n\nNo. The tier rules are an ordered function over a tier, a role and four flags (`routeTier`, hooks/lib/pricing.ts:247), not relations with named roles whose effects run.\n\n## Failure and trace visibility\n\nA routed agent's why-line (pane, `ctrl+x tab`) states the tier, the rule that moved it and the effort cap. The daily `.tsv` has one row per run with the transcript path, so any outcome can be traced to the full subagent transcript under `~/.claude/projects/<project>/<session>/subagents/`. The weekly review lists the transcript paths of the bad runs to read before any decision is accepted.\n", "base": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/"}}, "graphs": {}, "full": false}</script>
+<script src="graph-viewer.js"></script><script src="marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+const D = JSON.parse(document.getElementById('page-data').textContent);
+function renderMd(id, item) {
+  const host = document.getElementById(id); if (!host || !window.marked) return;
+  host.innerHTML = marked.parse(item.text);
+  if (item.base) host.querySelectorAll('a[href]').forEach(a => {
+    const h = a.getAttribute('href');
+    if (!/^([a-z]+:|#|\/)/i.test(h)) a.href = new URL(h, item.base).href;
+  });
+  host.querySelectorAll('code.language-mermaid').forEach(c => {
+    const div = document.createElement('div'); div.className = 'mermaid'; div.textContent = c.textContent;
+    c.parentElement.replaceWith(div);
+  });
+}
+// Size a frame from its drawing so its words read at their real size when the width allows; when even
+// that leaves them small, say so under the drawing and point at its full page.
+function sized(el) {
+  return ({width, height}) => {
+    if (!width || !height) return;
+    const wz = Math.min(1, (el.clientWidth * 0.84) / width);
+    el.style.height = Math.round(Math.max(320, Math.min(window.innerHeight * 0.88, height * wz / 0.84))) + 'px';
+    const zoom = Math.min(1, (el.clientWidth * 0.84) / width, (el.clientHeight * 0.84) / height);
+    if (zoom < 0.7 && !el.nextElementSibling?.classList.contains('smallnote')) {
+      const note = document.createElement('p'); note.className = 'note smallnote';
+      const own = el.dataset.page ? ` or <a href="${el.dataset.page}">open it on its own page</a>` : '';
+      note.innerHTML = `Shown whole at ${Math.round(zoom * 100)}% of full size, so the words are small here. Press <b>Full page</b> (top-left of the drawing)${own} to read it.`;
+      el.after(note);
+    }
+  };
+}
+for (const [id, item] of Object.entries(D.md || {})) renderMd(id, item);
+for (const [id, g] of Object.entries(D.graphs || {})) {
+  const el = document.getElementById(id); if (!el || !window.GraphViewer) continue;
+  const v = GraphViewer.mount(el, {graph: g, onLayout: D.full ? undefined : sized(el)});
+  if (D.full && v && v.fullPage) setTimeout(() => v.fullPage(true), 300);
+}
+if (window.mermaid) {
+  mermaid.initialize({startOnLoad: false, theme: 'neutral', securityLevel: 'strict'});
+  const run = () => mermaid.run({querySelector: '.mermaid:not([data-processed])'});
+  document.querySelectorAll('details').forEach(d => d.addEventListener('toggle', () => { if (d.open) run(); }));
+  run();
+} else {
+  document.querySelectorAll('.mermaid').forEach(el => { el.style.whiteSpace = 'pre'; el.style.fontFamily = 'monospace'; });
+}
+</script></body></html>

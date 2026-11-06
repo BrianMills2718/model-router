@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How does a subagent task become a model and an effort cap, and how do its outcomes come back as proposed rule changes?</title><style>
+body { font: 16px/1.5 system-ui, sans-serif; margin: 0 16px; color: #1b1f24; background: #fff; }
+main { max-width: 1140px; min-width: 0; margin: 0 auto; padding: 20px 0 64px; }
+h1 { font-size: 26px; margin: 8px 0; } h2 { font-size: 21px; margin-top: 40px; border-bottom: 2px solid #0b3d6b; padding-bottom: 6px; }
+h2 .n { color: #0b3d6b; margin-right: 6px; } h2 .sub { font-weight: 400; } h3 { font-size: 17px; margin-top: 24px; }
+.wide { overflow-x: auto; max-width: 100%; } .doc, pre { overflow-x: auto; max-width: 100%; } img, svg { max-width: 100%; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+th, td { border: 1px solid #c9ced4; padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #eef1f4; } code { font-size: 13px; word-break: break-all; }
+.doc td:first-child { white-space: normal; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-weight: 600; font-size: 13px; max-width: 100%; }
+:not(.wide) > table { display: block; overflow-x: auto; max-width: 100%; }
+.ok { background: #d6e6f7; color: #0b3d6b; border: 1px solid #0b3d6b; }
+.open { background: #fde3c4; color: #7a3300; border: 1px dashed #7a3300; }
+.todo { background: #e4e7eb; color: #3d4450; border: 1px solid #3d4450; }
+.star { border: 2px solid #e8892b; border-radius: 8px; padding: 8px 16px; background: #fff6ec; margin: 16px 0; }
+.sum { border: 2px solid #0b3d6b; border-radius: 8px; padding: 8px 16px; background: #eef4fb; margin: 16px 0; }
+.sum h3 { margin: 10px 0 2px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: #0b3d6b; }
+.sum p { margin: 0 0 6px; }
+.status { font-size: 15px; margin: 10px 0; } .status b { font-size: 16px; }
+.frame { height: 520px; border: 1px solid #c9ced4; border-radius: 6px; margin: 8px 0 6px; overflow: hidden; }
+.mermaid { background: #fff; border: 1px solid #c9ced4; border-radius: 6px; padding: 10px; overflow-x: auto; }
+.doc { border: 1px solid #c9ced4; border-radius: 6px; padding: 2px 16px; margin: 8px 0 16px; }
+details { margin: 10px 0; border: 1px solid #c9ced4; border-radius: 6px; padding: 2px 12px; }
+details > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+nav.top { font-size: 14px; line-height: 1.9; padding: 8px 0; border-bottom: 1px solid #c9ced4; }
+.note { color: #3d4450; font-size: 14px; } .smallnote { margin-top: 0; color: #7a3300; }
+.missing { color: #7a3300; } .quote { border-left: 4px solid #0b3d6b; padding-left: 12px; color: #3d4450; }
+table.ladder td:first-child { font-weight: 700; text-align: center; width: 3em; }
+.adr { border-left: 4px solid #0b3d6b; padding: 2px 12px; margin: 14px 0; } .adr h3 { margin-top: 8px; }
+.adr .who { font-size: 14px; color: #3d4450; margin: 2px 0; }
+.matrix td, .matrix th { text-align: center; padding: 4px 5px; font-size: 12px; white-space: nowrap; overflow-wrap: normal; }
+.m-yes { background: #d6e6f7; color: #0b3d6b; font-weight: 600; } .m-part { background: #fde3c4; color: #7a3300; font-weight: 600; }
+.hub { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 18px 0; }
+.card { border: 1px solid #c9ced4; border-radius: 8px; padding: 10px 16px; }
+.card h2 { border: 0; margin: 4px 0 6px; font-size: 18px; }
+.card ul { padding-left: 18px; margin: 6px 0; } .card li { margin: 4px 0; }
+.full { position: fixed; inset: 0; } .full .bar { height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 16px 0 150px; background: #0b3d6b; color: #fff; font-size: 15px; overflow: hidden; white-space: nowrap; }
+.full .bar a { color: #fff; } .full #graph { position: absolute; top: 44px; left: 0; right: 0; bottom: 0; }
+.fulldoc .bar { position: sticky; top: 0; z-index: 2; padding-left: 16px; }
+@media (max-width: 700px) { .full .bar { padding-left: 110px; font-size: 13px; } td { min-width: 6em; } }
+</style></head><body>
+<div class="full"><div class="bar"><b>How does a subagent task become a model and an effort cap, and how do its outcomes come back as proposed rule changes?</b> <a href="index.html">All views</a> <a href="review.html">Review the plan</a></div><div id="graph"></div></div>
+<script type="application/json" id="page-data">{"md": {}, "graphs": {"graph": {"schema": "typed-graph/v1", "kinds": {"Claude Code": {"label": "Outside the plugin", "color": "#7a8491", "explain": "What Claude Code and Brian's settings own."}, "Rule": {"label": "Routing rules", "color": "#3b7dd8", "explain": "What the plugin decides for each subagent."}, "Signal": {"label": "Feedback records", "color": "#e8892b", "explain": "What is recorded about routed runs and read back to improve the rules."}}, "layout": {"direction": "RIGHT", "algorithm": "layered"}, "nodes": [{"id": "tier", "label": "Tier", "kind": "Rule", "explain": "The router's grade for a task: easy, normal, hard or long, each tied to a model (Haiku 5.5, Sonnet 5.5, Opus 5.5, Fable 5.1). Source: README.md:17. Code: hooks/lib/pricing.ts:22."}, {"id": "effort-cap", "label": "Effort cap", "kind": "Rule", "explain": "The most reasoning effort a tier's requests may ask for; it only ever lowers effort. Easy low (medium over about 50k tokens), normal medium, hard high, long unchanged. Source: README.md:19. Code: hooks/lib/pricing.ts:53."}, {"id": "role", "label": "Role", "kind": "Rule", "explain": "A router agent kind (architect, builder, runner, fixer) or the judge group, each with a lowest and highest tier. Source: README.md:26. Code: hooks/lib/pricing.ts:180."}, {"id": "judging-agent", "label": "Judging agent", "kind": "Rule", "explain": "An agent whose output is a plan, a review or an answer someone relies on, so a wrong result is silent. It never runs on Haiku, whoever installed it. Source: README.md:32. Code: hooks/lib/pricing.ts:196."}, {"id": "risk-floor", "label": "Risk floor", "kind": "Rule", "explain": "A task whose agent will do lasting harm (deploy to prod, delete real data, force-push) runs on Opus or higher. Source: README.md:27. Code: hooks/lib/pricing.ts:275."}, {"id": "pressure", "label": "Pressure", "kind": "Rule", "explain": "The rules that push routing one or two tiers cheaper: rate limit, pace and budget, each held above a floor for builders, fixers and judging agents. Source: README.md:28. Code: hooks/lib/pricing.ts:245."}, {"id": "classifier-verdict", "label": "Classifier verdict", "kind": "Rule", "explain": "Haiku 5.5's reading of a task as a tier and a risk flag, cached by task key. Source: README.md:35. Code: hooks/lib/pricing.ts:396."}, {"id": "rescue", "label": "Rescue", "kind": "Rule", "explain": "A stuck Haiku or Sonnet agent (3 failed tool calls in a row, or far too many requests or minutes) moves up one model mid-run. Source: README.md:29. Code: hooks/register.tsx:264."}, {"id": "subagent", "label": "Subagent", "kind": "Claude Code", "explain": "A helper session Claude Code starts for one task; the only thing the router can route. Source: README.md:77. Not implemented here.", "dashed": true}, {"id": "main-conversation", "label": "Main conversation", "kind": "Claude Code", "explain": "The session Brian types into. A plugin cannot change its model or effort (open question Q4 checks the unread part of the docs). Source: docs/planning/research-routing-best-practices.md:55. Not implemented here.", "dashed": true}, {"id": "main-model-lever", "label": "Main-model lever", "kind": "Claude Code", "explain": "The two settings that do set the main model: the model default in ~/.claude/settings.json (sonnet) and /model or /effort. Source: README.md:77. Not implemented here.", "dashed": true}, {"id": "daily-report", "label": "Daily report", "kind": "Signal", "explain": "One row per subagent run and per main-conversation session, with tier and outcome, plus a short summary, written daily to ~/projects/data/logs/router. Source: docs/planning/evidence/router-report-2026-11-05.md:1. Code: /home/brian/code2/workspace/scripts/router_report.py:425."}, {"id": "main-conversation-line", "label": "Main-conversation line", "kind": "Signal", "explain": "The report line giving main-conversation spend, the Opus share and what the same Opus tokens would cost on Sonnet, worked out as tokens times the price table. Source: docs/planning/evidence/router-report-2026-11-05.md:6. Code: /home/brian/code2/workspace/scripts/router_report.py:358."}, {"id": "outcome-signal", "label": "Outcome signal", "kind": "Signal", "explain": "The label on a routed run: ok, failed_tools, rescued, redone or fixed_after. It catches loud failure only. Source: README.md:89. Code: /home/brian/code2/workspace/scripts/router_report.py:309."}, {"id": "redo", "label": "Redo", "kind": "Signal", "explain": "A stronger model repeating a run with identical task text; a planned 'round N' with different text is not one. Source: docs/planning/evidence/router-report-2026-11-05.md:23. Code: /home/brian/code2/workspace/scripts/router_report.py:277."}, {"id": "weekly-review", "label": "Weekly review", "kind": "Signal", "explain": "A Monday 07:50 job that groups outcomes by agent type and tier and proposes tier-rule changes. Source: README.md:89. Code: /home/brian/code2/workspace/scripts/router_review.py:113."}, {"id": "tier-decision", "label": "Tier decision", "kind": "Signal", "explain": "A proposed change to a tier rule with its evidence, the traces to read and a status; a session accepts or rejects it and records which. Source: docs/planning/evidence/router-weekly-review-sample.md:34. Code: /home/brian/code2/workspace/scripts/router_review.py:63."}], "edges": [{"id": "e0", "source": "main-conversation", "target": "subagent", "label": "starts"}, {"id": "e1", "source": "main-model-lever", "target": "main-conversation", "label": "sets"}, {"id": "e2", "source": "subagent", "target": "classifier-verdict", "label": "is read into"}, {"id": "e3", "source": "classifier-verdict", "target": "tier", "label": "gives"}, {"id": "e4", "source": "tier", "target": "effort-cap", "label": "caps"}, {"id": "e5", "source": "role", "target": "tier", "label": "limits"}, {"id": "e6", "source": "judging-agent", "target": "role", "label": "is a"}, {"id": "e7", "source": "risk-floor", "target": "tier", "label": "raises"}, {"id": "e8", "source": "pressure", "target": "tier", "label": "lowers"}, {"id": "e9", "source": "rescue", "target": "tier", "label": "raises mid-run"}, {"id": "e10", "source": "subagent", "target": "daily-report", "label": "is a row of"}, {"id": "e11", "source": "daily-report", "target": "main-conversation-line", "label": "has"}, {"id": "e12", "source": "daily-report", "target": "outcome-signal", "label": "labels runs with"}, {"id": "e13", "source": "outcome-signal", "target": "redo", "label": "includes"}, {"id": "e14", "source": "outcome-signal", "target": "weekly-review", "label": "feeds"}, {"id": "e15", "source": "weekly-review", "target": "tier-decision", "label": "proposes"}, {"id": "e16", "source": "tier-decision", "target": "tier", "label": "changes"}]}}, "full": true}</script>
+<script src="graph-viewer.js"></script><script src="marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+const D = JSON.parse(document.getElementById('page-data').textContent);
+function renderMd(id, item) {
+  const host = document.getElementById(id); if (!host || !window.marked) return;
+  host.innerHTML = marked.parse(item.text);
+  if (item.base) host.querySelectorAll('a[href]').forEach(a => {
+    const h = a.getAttribute('href');
+    if (!/^([a-z]+:|#|\/)/i.test(h)) a.href = new URL(h, item.base).href;
+  });
+  host.querySelectorAll('code.language-mermaid').forEach(c => {
+    const div = document.createElement('div'); div.className = 'mermaid'; div.textContent = c.textContent;
+    c.parentElement.replaceWith(div);
+  });
+}
+// Size a frame from its drawing so its words read at their real size when the width allows; when even
+// that leaves them small, say so under the drawing and point at its full page.
+function sized(el) {
+  return ({width, height}) => {
+    if (!width || !height) return;
+    const wz = Math.min(1, (el.clientWidth * 0.84) / width);
+    el.style.height = Math.round(Math.max(320, Math.min(window.innerHeight * 0.88, height * wz / 0.84))) + 'px';
+    const zoom = Math.min(1, (el.clientWidth * 0.84) / width, (el.clientHeight * 0.84) / height);
+    if (zoom < 0.7 && !el.nextElementSibling?.classList.contains('smallnote')) {
+      const note = document.createElement('p'); note.className = 'note smallnote';
+      const own = el.dataset.page ? ` or <a href="${el.dataset.page}">open it on its own page</a>` : '';
+      note.innerHTML = `Shown whole at ${Math.round(zoom * 100)}% of full size, so the words are small here. Press <b>Full page</b> (top-left of the drawing)${own} to read it.`;
+      el.after(note);
+    }
+  };
+}
+for (const [id, item] of Object.entries(D.md || {})) renderMd(id, item);
+for (const [id, g] of Object.entries(D.graphs || {})) {
+  const el = document.getElementById(id); if (!el || !window.GraphViewer) continue;
+  const v = GraphViewer.mount(el, {graph: g, onLayout: D.full ? undefined : sized(el)});
+  if (D.full && v && v.fullPage) setTimeout(() => v.fullPage(true), 300);
+}
+if (window.mermaid) {
+  mermaid.initialize({startOnLoad: false, theme: 'neutral', securityLevel: 'strict'});
+  const run = () => mermaid.run({querySelector: '.mermaid:not([data-processed])'});
+  document.querySelectorAll('details').forEach(d => d.addEventListener('toggle', () => { if (d.open) run(); }));
+  run();
+} else {
+  document.querySelectorAll('.mermaid').forEach(el => { el.style.whiteSpace = 'pre'; el.style.fontFamily = 'monospace'; });
+}
+</script></body></html>

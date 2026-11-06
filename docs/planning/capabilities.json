@@ -1,0 +1,81 @@
+{
+ "schema_version": "1.0",
+ "record_type": "capabilities",
+ "note": "What the model-router fork must do, by capability. Status comes from the acceptance entries named here.",
+ "asked_by": "Brian, 2026-11-06 on code2-workspace #162",
+ "rows": [
+  {
+   "id": "C1",
+   "capability": "Mechanical subagent work goes to Haiku; design and review never do",
+   "you_get": "Cheaper runs for work a cheap check verifies, no silent errors from a weak reviewer",
+   "owner": "model-router",
+   "where": "hooks/lib/pricing.ts",
+   "acceptance": [
+    "A1"
+   ],
+   "satisfies": [],
+   "mitigates": [],
+   "partly_mitigates": [],
+   "provided_by": "Built on branch tiers-feedback, 2026-11-06"
+  },
+  {
+   "id": "C2",
+   "capability": "A reasoning-effort cap per tier, with a reason for each",
+   "you_get": "Lower token use without a bigger model",
+   "owner": "model-router",
+   "where": "hooks/lib/pricing.ts",
+   "acceptance": [
+    "A2"
+   ],
+   "satisfies": [],
+   "mitigates": [],
+   "partly_mitigates": [],
+   "provided_by": "Built on branch tiers-feedback, 2026-11-06"
+  },
+  {
+   "id": "C3",
+   "capability": "Main-model lever recorded; main-conversation cost shown in the daily report",
+   "you_get": "The biggest spend is visible and its lever is named",
+   "owner": "model-router and code2-workspace",
+   "where": "README.md; /home/brian/code2/workspace/scripts/router_report.py",
+   "acceptance": [
+    "A3",
+    "A6",
+    "A7"
+   ],
+   "satisfies": [],
+   "mitigates": [],
+   "partly_mitigates": [],
+   "provided_by": "README here; report in code2-workspace PR 179"
+  },
+  {
+   "id": "C4",
+   "capability": "Rules grounded in cited research and first principles",
+   "you_get": "Each rule says where it came from",
+   "owner": "model-router",
+   "where": "docs/planning/research-routing-best-practices.md",
+   "acceptance": [
+    "A4"
+   ],
+   "satisfies": [],
+   "mitigates": [],
+   "partly_mitigates": [],
+   "provided_by": "Research report 2026-11-06 copied into this repository"
+  },
+  {
+   "id": "C5",
+   "capability": "Outcome per run and a weekly review that proposes tier-rule changes",
+   "you_get": "The rules improve from real outcomes",
+   "owner": "code2-workspace",
+   "where": "/home/brian/code2/workspace/scripts/router_review.py",
+   "acceptance": [
+    "A5",
+    "A8"
+   ],
+   "satisfies": [],
+   "mitigates": [],
+   "partly_mitigates": [],
+   "provided_by": "code2-workspace PR 179; first run Monday 2026-11-09 07:50"
+  }
+ ]
+}

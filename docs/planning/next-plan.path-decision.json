@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "record_type": "planning_path_decision",
+  "decision_id": "PATH-next-plan",
+  "project_id": "BrianMills2718/model-router",
+  "scope": "Haiku tier rules, per-tier effort caps, the outcome feedback loop and its weekly review for the model-router fork (code2-workspace #162)",
+  "selected_path": "durable_solo",
+  "facts": {
+    "existing_implementation_obstacle": false,
+    "reproduced_failure": false,
+    "identified_fix": false,
+    "concurrent_writers": false,
+    "machine_consumed_planning_handoff": false,
+    "shared_contract_mutation": false,
+    "persistent_migration": false,
+    "governed_registry": false,
+    "consequential_external_mutation": false,
+    "answer_only": false,
+    "continuity_beyond_session": false,
+    "one_writer": true,
+    "reversible": true,
+    "boundary_known": true
+  },
+  "fact_sources": {
+    "existing_implementation_obstacle": "derived_current_boundary",
+    "reproduced_failure": "derived_current_boundary",
+    "identified_fix": "derived_current_boundary",
+    "concurrent_writers": "observed_runtime",
+    "machine_consumed_planning_handoff": "derived_current_boundary",
+    "shared_contract_mutation": "derived_current_boundary",
+    "persistent_migration": "derived_current_boundary",
+    "governed_registry": "derived_current_boundary",
+    "consequential_external_mutation": "derived_current_boundary",
+    "answer_only": "derived_current_boundary",
+    "continuity_beyond_session": "derived_current_boundary",
+    "one_writer": "observed_runtime",
+    "reversible": "derived_current_boundary",
+    "boundary_known": "derived_current_boundary"
+  },
+  "fact_evidence": {
+    "one_writer": "One agent session edits the tiers-feedback worktree; no other claim or lane touches model-router (git worktree list).",
+    "reversible": "Tier and effort values are constants in hooks/lib/pricing.ts and revert with git; the report and review scripts only write dated log files.",
+    "boundary_known": "hooks/lib/pricing.ts, hooks/register.tsx and hooks/router.test.ts in this repository; scripts/router_report.py and scripts/router_review.py in code2-workspace (merged as PR #179)."
+  },
+  "rationale": "One writer, a reversible change to constants and two log-writing scripts, and a known boundary: durable_solo. No migration, shared contract or external mutation."
+}

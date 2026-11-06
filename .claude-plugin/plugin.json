@@ -1,6 +1,6 @@
 {
   "name": "model-router",
-  "version": "0.8.0",
+  "version": "0.8.1-pace.1",
   "description": "Picks Haiku, Sonnet, Opus or Fable for each subagent and shows what it cost.",
   "author": {
     "name": "Andy"
@@ -54,6 +54,13 @@
       "description": "Move a stuck Haiku or Sonnet agent up one model mid-run.",
       "type": "boolean",
       "default": true
+    },
+    "pace": {
+      "type": "string",
+      "title": "Route cheaper when ahead of pace",
+      "description": "on: route one tier cheaper when a 5h or 7d rate-limit window is used 1.25x faster than time passes, two tiers at 2x. off: only limitPressure applies.",
+      "options": ["off", "on"],
+      "default": "off"
     },
     "budget": {
       "title": "Session budget",

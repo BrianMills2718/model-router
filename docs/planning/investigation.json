@@ -1,0 +1,136 @@
+{
+ "schema_version": "1.0",
+ "record_type": "investigation",
+ "searched": [
+  {
+   "where": "docs",
+   "how": "read README.md, CHANGELOG.md, RELEASING.md and the #162 issue and comments (gh issue view 162 --repo BrianMills2718/code2-workspace --comments)",
+   "found": [
+    "README.md:13",
+    "README.md:77",
+    "README.md:87",
+    "CHANGELOG.md:9",
+    "docs/planning/research-routing-best-practices.md:5"
+   ]
+  },
+  {
+   "where": "code",
+   "how": "rg -n 'EFFORT_CAP|ROLE_LIMITS|PRESSURE_FLOOR|judgeRoleOf|effortCapFor' hooks; read hooks/lib/pricing.ts and the routing section of hooks/register.tsx",
+   "found": [
+    "hooks/lib/pricing.ts:53",
+    "hooks/lib/pricing.ts:180",
+    "hooks/lib/pricing.ts:196",
+    "hooks/lib/pricing.ts:245",
+    "hooks/register.tsx:820"
+   ]
+  },
+  {
+   "where": "run_records",
+   "how": "python3 scripts/router_report.py --day 2026-11-05 and 2026-11-04 (code2-workspace) over ~/.claude/projects transcripts; python3 scripts/router_review.py --week 2026-W45",
+   "found": [
+    "docs/planning/evidence/router-report-2026-11-05.md",
+    "docs/planning/evidence/router-weekly-review-sample.md"
+   ]
+  },
+  {
+   "where": "issues",
+   "how": "gh issue list --repo BrianMills2718/model-router (issues are disabled in the fork); gh issue view 162 --repo BrianMills2718/code2-workspace",
+   "found": 0
+  },
+  {
+   "where": "prior_art",
+   "how": "where-is model-router; grep -n router ~/code2/workspace/docs/capabilities.md; research report sections 1-3 (RouteLLM, FrugalGPT, LLMRouterBench, Anthropic cost guidance)",
+   "found": [
+    "docs/planning/research-routing-best-practices.md:67",
+    "/home/brian/code2/workspace/docs/capabilities.md:28"
+   ]
+  }
+ ],
+ "findings": [
+  {
+   "id": "F1",
+   "claim": "README.md:77 says only subagents are routed and the main conversation keeps your model; the main conversation is where most spend is",
+   "evidence": [
+    "README.md:77",
+    "docs/planning/evidence/router-report-2026-11-05.md:6"
+   ],
+   "verdict": "holds"
+  },
+  {
+   "id": "F2",
+   "claim": "Before this change the plugin put no effort cap on hard or long tasks and let any task reach Haiku, including judging agents under pace pressure",
+   "evidence": [
+    "CHANGELOG.md:9",
+    "hooks/router.test.ts:106"
+   ],
+   "verdict": "holds"
+  },
+  {
+   "id": "F3",
+   "claim": "The daily report's 'Saved' figure (7%) counts subagents only, so the biggest lever (main conversations on Opus, 88% of main spend) did not show",
+   "evidence": [
+    "docs/planning/evidence/router-report-2026-11-05.md:5",
+    "docs/planning/evidence/router-report-2026-11-05.md:6"
+   ],
+   "verdict": "holds"
+  },
+  {
+   "id": "F4",
+   "claim": "The report flagged a planned 'Cold review round 2' as a redo of round 1",
+   "evidence": [
+    "/home/brian/code2/workspace/scripts/router_report.py:277"
+   ],
+   "verdict": "holds"
+  },
+  {
+   "id": "F5",
+   "claim": "Anthropic's Haiku-subagent test saved 32% for about 4 points of pass rate, and low effort skips checks in long Haiku prompts (the basis of the Haiku rules)",
+   "evidence": [
+    "docs/planning/research-routing-best-practices.md:24",
+    "docs/planning/research-routing-best-practices.md:41",
+    "docs/planning/open-questions.json (Q3 and Q4 evidence, re-read 2026-11-06)"
+   ],
+   "verdict": "holds"
+  },
+  {
+   "id": "F6",
+   "claim": "A plugin cannot set the main conversation's model or effort (the reason item 1 builds no hook)",
+   "evidence": [
+    "docs/planning/research-routing-best-practices.md:64",
+    "docs/planning/open-questions.json (Q3 and Q4 evidence, re-read 2026-11-06)"
+   ],
+   "verdict": "holds"
+  },
+  {
+   "id": "F7",
+   "claim": "Outcome signals (retry, rescue, fixer afterwards, failed tools) are enough to improve tier rules over time",
+   "evidence": [
+    "docs/planning/evidence/router-weekly-review-sample.md:5"
+   ],
+   "verdict": "unknown",
+   "question_id": "Q2"
+  }
+ ],
+ "cost": {
+  "time": {
+   "value": "router_report.py over two days of transcripts ran in under 400 seconds (timeout used); the plugin test suite runs in about 10 seconds",
+   "source": "make check run, docs/planning/checks.txt"
+  },
+  "calls": {
+   "value": "the plugin adds one Haiku 5.5 classifier call per new task key at subagent start; repeats hit the cache",
+   "source": "hooks/register.tsx:494 (loadClassCache)"
+  },
+  "input_tokens": {
+   "value": "at most about 2,100 per classification (2,187-character rubric plus a task cut at 6,000 characters, at 4 characters per token, a guess for the ratio)",
+   "source": "hooks/lib/pricing.ts:536"
+  },
+  "output_tokens": {
+   "value": "at most 48 per classification",
+   "source": "hooks/register.tsx:727"
+  },
+  "money": {
+   "value": "2026-11-05: $1,055.67 total at list price, main $514.06, subagents $541.60; classifier spend is the claude-haiku-5-5 row, $0.03 main + $0.34 subagents",
+   "source": "docs/planning/evidence/router-report-2026-11-05.md:3"
+  }
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A1",
+ "title": "I can see which subagent jobs go to Haiku and that design and review never do.",
+ "stakeholder": "Brian",
+ "concern": "I can see which subagent jobs go to Haiku and that design and review never do.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}

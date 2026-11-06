@@ -3,6 +3,10 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import {
   asksForLongRun,
   capEffort,
+  effortCapFor,
+  judgeRoleOf,
+  LONG_PROMPT_CHARS,
+  EFFORT_CAP,
   CLASSIFIER_SYSTEM,
   classifyKey,
   clampTier,
@@ -15,6 +19,9 @@ import {
   parseRisky,
   budgetUsd,
   parseTier,
+  paceOf,
+  paceText,
+  worstPace,
   rescueReason,
   rescueTier,
   routeTier,
@@ -83,6 +90,29 @@ describe('pure routing rules', () => {
     expect(clampTier('long', 'builder', true)).toBe('long')
     expect(tierOfModel('opus')).toBe('hard')
     expect(tierOfModel('claude-haiku-4-5')).toBe('simple')
+  })
+
+  test('effort caps by tier; Haiku gets medium on a long prompt', async () => {
+    expect(effortCapFor('simple', 100)).toBe('low')
+    expect(effortCapFor('simple', LONG_PROMPT_CHARS + 1)).toBe('medium')
+    expect(effortCapFor('standard', LONG_PROMPT_CHARS + 1)).toBe('medium')
+    expect(effortCapFor('hard')).toBe('high')
+    expect(effortCapFor('long')).toBe(undefined)
+    // hard work is capped at high, never raised
+    expect(capEffort('max', effortCapFor('hard'))).toBe('high')
+    expect(capEffort('medium', effortCapFor('hard'))).toBe('medium')
+  })
+
+  test('judging agents never go to Haiku', async () => {
+    expect(judgeRoleOf('company-planning:planning-compliance-reviewer')).toBe('judge')
+    expect(judgeRoleOf('reviewer')).toBe('judge')
+    expect(judgeRoleOf('Plan')).toBe('judge')
+    expect(judgeRoleOf('bulk-worker')).toBe(undefined)
+    expect(judgeRoleOf('Explore')).toBe(undefined)
+    expect(clampTier('simple', 'judge')).toBe('standard')
+    expect(clampTier('hard', 'judge')).toBe('hard')
+    // pace and pressure cannot push a judge below Sonnet
+    expect(routeTier('hard', 'judge', false, { down: 2 })).toBe('standard')
   })
 
   test('long only when the task asks for a long or unattended run', async () => {
@@ -434,14 +464,14 @@ describe('effort', () => {
     expect(seen.effort).toBe('low')
   })
 
-  test('a hard task keeps the effort it had', async ($, on) => {
+  test('a hard task keeps its effort up to high and no further', async ($, on) => {
     mock.clock(on)
     on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'hard', usage: USAGE } }))
     on('agent.spawn', async (_$, e) => ({ model: e.model ?? '', agentId: 'e2' }))
     const seen = captureEffort(on)
     await $.agent.spawn(spawnInput())
     await step($, 'e2', 'xhigh')
-    expect(seen.effort).toBe('xhigh')
+    expect(seen.effort).toBe('high')
   })
 
   test('a model without effort is not given one', async ($, on) => {
@@ -1291,7 +1321,7 @@ describe('0.7.0 classifier cache', () => {
     expect(models).toEqual(['claude-opus-5-5', 'claude-opus-5-5'])
     const ui = await mountPane($)
     await ui.press({ key: 'row-c2' } as never)
-    expect(await ui.find({ type: 'Text', text: /^\s+classifier \(cached\): hard$/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^\s+classifier \(cached\): hard · effort ≤ high$/ })).toBeDefined()
     await ui.unmount()
   })
 
@@ -1664,5 +1694,132 @@ describe('0.8.1 fixes', () => {
     expect(spawnedOn).toBe('claude-haiku-5-5')
     // room for a short explanation before the verdict, so a reply is not cut off there
     expect(maxTokens as number).toBeGreaterThanOrEqual(32)
+  })
+})
+
+const HOUR = 3_600_000
+const WEEK = 168 * HOUR
+
+describe('pace: pure rules', () => {
+  const now = 1_000_000_000_000
+  // a seven-day window with `elapsed` of the week gone
+  const week = (percentUsed: number, elapsed: number) => ({
+    kind: 'seven_day',
+    percentUsed,
+    resetsAt: new Date(now + (1 - elapsed) * WEEK).toISOString(),
+  })
+
+  test('on pace changes nothing', async () => {
+    expect(paceOf(week(10, 0.2), now)?.steps).toBe(0)
+    expect(paceOf(week(24, 0.2), now)?.steps).toBe(0) // 1.2x
+  })
+  test('1.25x is one tier, 2x is two', async () => {
+    expect(paceOf(week(25, 0.2), now)?.steps).toBe(1)
+    expect(paceOf(week(39, 0.2), now)?.steps).toBe(1)
+    expect(paceOf(week(40, 0.2), now)?.steps).toBe(2)
+  })
+  test('the early-window floor keeps the first minutes from exploding', async () => {
+    // 1% of the window gone, 4% used: 4/5 = 0.8x, not 4x
+    const p = paceOf(week(4, 0.01), now)
+    expect(p?.steps).toBe(0)
+    expect(p?.ratio.toFixed(2)).toBe('0.80')
+  })
+  test('a window without resetsAt, an unknown kind or a past reset is ignored', async () => {
+    expect(paceOf({ kind: 'seven_day', percentUsed: 90 }, now)).toBeUndefined()
+    expect(paceOf({ kind: 'monthly', percentUsed: 90, resetsAt: new Date(now + HOUR).toISOString() }, now)).toBeUndefined()
+    expect(paceOf({ ...week(90, 0.5), resetsAt: new Date(now - 1).toISOString() }, now)).toBeUndefined()
+    expect(worstPace([{ kind: 'seven_day', percentUsed: 90 }], now)).toBeUndefined()
+  })
+  test('the worst window wins, and the text carries the numbers', async () => {
+    const five = { kind: 'five_hour', percentUsed: 10, resetsAt: new Date(now + 2.5 * HOUR).toISOString() } // 5x? 10/50 = 0.2
+    const p = worstPace([five, week(10, 0.03)], now)!
+    expect(p.kind).toBe('seven_day')
+    expect(p.steps).toBe(2)
+    expect(paceText(p)).toBe('7d window 10% used at 3% of the week: 2.0x pace, two tiers down')
+  })
+  test('routeTier drops by steps with the same floors', async () => {
+    expect(routeTier('long', undefined, true, { down: 2 })).toBe('standard')
+    expect(routeTier('hard', undefined, false, { down: 2 })).toBe('simple')
+    expect(routeTier('hard', 'architect', false, { down: 2 })).toBe('standard')
+    expect(routeTier('hard', 'builder', false, { down: 2 })).toBe('standard')
+    expect(routeTier('hard', 'fixer', false, { down: 1 })).toBe('standard')
+    expect(routeTier('hard', 'builder', false, { down: 2, risky: true })).toBe('hard')
+    expect(routeTier('simple', undefined, false, { down: 2 })).toBe('simple')
+  })
+})
+
+describe('pace: routing', () => {
+  const T0 = 1_000_000_000_000
+  function paceLimits(on: any, percentUsed: number, elapsed: number, withReset = true) {
+    on('session.usage', async () => ({
+      value: {
+        startedAt: 0,
+        context: {} as never,
+        rateLimits: [
+          {
+            kind: 'seven_day',
+            percentUsed,
+            ...(withReset ? { resetsAt: new Date(T0 + (1 - elapsed) * WEEK).toISOString() } : {}),
+          },
+        ],
+      },
+    }))
+  }
+  async function spawnOn($: any, on: any, text: string, over: Record<string, unknown> = {}) {
+    let spawnedOn: string | undefined
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text, usage: USAGE } }))
+    on('agent.spawn', async (_$: any, e: any) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'pace1' }
+    })
+    await $.agent.spawn(spawnInput({ subagentType: 'general-purpose', ...over }))
+    return spawnedOn
+  }
+  const run = (name: string, options: Record<string, unknown>, fn: any) => test(name, { options }, fn)
+
+  run('pace off changes nothing', { limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 60, 0.2)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-opus-5-5')
+  })
+  run('on pace changes nothing', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 24, 0.2)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-opus-5-5')
+  })
+  run('1.25x lowers one tier', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 26, 0.2)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-sonnet-5-5')
+  })
+  run('2x lowers two tiers', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 45, 0.2)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-haiku-5-5')
+  })
+  run('a builder stays on Sonnet at 2x', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 45, 0.2)
+    expect(await spawnOn($, on, 'hard', { subagentType: 'model-router:builder' })).toBe('claude-sonnet-5-5')
+  })
+  run('a risky task keeps Opus at 2x', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 45, 0.2)
+    expect(await spawnOn($, on, 'hard risky')).toBe('claude-opus-5-5')
+  })
+  run('a window without resetsAt is ignored', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 90, 0.2, false)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-opus-5-5')
+  })
+  run('early in a window the floor holds it back', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 4, 0.01)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-opus-5-5')
+  })
+  run('the stronger of pace and limitPressure wins', { pace: 'on', limitPressure: '80' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    paceLimits(on, 85, 0.2)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-haiku-5-5')
   })
 })

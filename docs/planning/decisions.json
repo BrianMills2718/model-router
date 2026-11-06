@@ -1,0 +1,48 @@
+{
+ "decisions": [
+  {
+   "id": "D1",
+   "title": "Tune effort first; send only checkable work to Haiku",
+   "status": "accepted",
+   "context": "Anthropic's own test of Haiku subagents under Opus saved 32% of cost for about 4 points of pass rate, which lowering effort also buys. Haiku 5.5 at low effort in long prompts is more likely to skip a check (research report sections 1.1, 1.2).",
+   "decision": "Easy tier: Haiku 5.5 at low effort, medium over about 50k tokens. Normal: Sonnet medium. Hard: Opus high. Long: Fable unchanged. Haiku gets only mechanical work with a cheap check.",
+   "consequences": "Savings come from the routine bulk. A Haiku mistake is caught by the cheap check or by a rescue; nothing silent goes to Haiku. Values are constants in hooks/lib/pricing.ts and revert with git.",
+   "decided_by": "Brian asked for Haiku and a reasoning level (\"haiku in some places also and the reaosnign level\"); the values are inferred by agent from the research",
+   "date": "2026-11-06",
+   "source": "https://github.com/BrianMills2718/code2-workspace/issues/162"
+  },
+  {
+   "id": "D2",
+   "title": "Judging agents never run on Haiku",
+   "status": "accepted",
+   "context": "A wrong review, plan or answer is a silent error that a cheap check does not catch, and downstream work builds on it (research report section 4).",
+   "decision": "Agent types architect, Plan, reviewer, code-review, project-brain, researcher and *-reviewer get the judge limits: Sonnet or higher, and pace or rate-limit pressure cannot lower them below Sonnet.",
+   "consequences": "Some review runs cost more than a Haiku would. The match is on the agent type name, not task prose.",
+   "decided_by": "inferred by agent from the research; Brian's brief: design, review and anything he reads never go to Haiku",
+   "date": "2026-11-06",
+   "source": "hooks/router.test.ts:106"
+  },
+  {
+   "id": "D3",
+   "title": "Build no hook for the main-conversation model",
+   "status": "accepted",
+   "context": "The research found no plugin mechanism that sets the main session's model or effort (section 1.4), with a coverage gap tracked as Q4.",
+   "decision": "Record the lever in the README (settings default plus /model and /effort) and show the main-conversation cost in the daily report instead.",
+   "consequences": "The main model stays a manual lever; if Q4 finds a mechanism, this decision is revisited.",
+   "decided_by": "Brian's instruction on #162 (item 1: build no hook)",
+   "date": "2026-11-06",
+   "source": "https://github.com/BrianMills2718/code2-workspace/issues/162"
+  },
+  {
+   "id": "D4",
+   "title": "Feedback from existing logs, proposals as recorded decisions",
+   "status": "accepted",
+   "context": "The router keeps no log of its own; the transcripts and the daily report already hold what is needed.",
+   "decision": "Add an outcome per run to the daily report and a Monday weekly review that groups outcomes by agent type and tier and proposes decisions; a session accepts or rejects each after reading the traces.",
+   "consequences": "Signals catch loud failure only (Q2). Raise a tier at 10+ runs and 12%+ bad; lower at 30+ runs and under 3%, never for judging agents. Thresholds are inferred by agent.",
+   "decided_by": "Brian asked for a feedback system so it improves over time; thresholds inferred by agent",
+   "date": "2026-11-06",
+   "source": "/home/brian/code2/workspace/scripts/router_review.py:63"
+  }
+ ]
+}

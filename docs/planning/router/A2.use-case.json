@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A2",
+ "title": "I can see the reasoning level each tier gets and where each number came from.",
+ "stakeholder": "Brian",
+ "concern": "I can see the reasoning level each tier gets and where each number came from.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}

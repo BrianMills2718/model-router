@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A4",
+ "title": "I can see that the rules rest on research and first principles, with the source of each one.",
+ "stakeholder": "Brian",
+ "concern": "I can see that the rules rest on research and first principles, with the source of each one.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}

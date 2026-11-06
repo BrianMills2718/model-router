@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A5",
+ "title": "I can see which tier rules the real outcomes support changing, with the transcripts to read.",
+ "stakeholder": "Brian",
+ "concern": "I can see which tier rules the real outcomes support changing, with the transcripts to read.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}
