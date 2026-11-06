@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "record_type": "semantic_spectrum",
+  "asked_by": "Company Planning package contract, 'Project layer of the semantic spectrum' (Brian, 2026-11-05: \"i approve all your recs\")",
+  "basis": "Terms are the concepts in domain.graph.json; each definition is that concept's explain there. Planning terms come from Company Planning's shared layer and are not repeated.",
+  "classes": [
+    {"id": "Claude Code", "definition": "What Claude Code and Brian's settings own, outside the plugin.", "label": "Outside the plugin"},
+    {"id": "Rule", "definition": "What the plugin decides for each subagent: model, effort and the limits on both.", "label": "Routing rules"},
+    {"id": "Signal", "definition": "What is recorded about routed runs and read back to improve the rules.", "label": "Feedback records"}
+  ],
+  "terms": [
+    {"id": "subagent", "kind": "Claude Code", "aliases": []},
+    {"id": "main-conversation", "kind": "Claude Code", "aliases": []},
+    {"id": "main-model-lever", "kind": "Claude Code", "aliases": []},
+    {"id": "tier", "kind": "Rule", "aliases": []},
+    {"id": "effort-cap", "kind": "Rule", "aliases": []},
+    {"id": "role", "kind": "Rule", "aliases": []},
+    {"id": "judging-agent", "kind": "Rule", "aliases": []},
+    {"id": "risk-floor", "kind": "Rule", "aliases": []},
+    {"id": "pressure", "kind": "Rule", "aliases": []},
+    {"id": "classifier-verdict", "kind": "Rule", "aliases": []},
+    {"id": "rescue", "kind": "Rule", "aliases": []},
+    {"id": "daily-report", "kind": "Signal", "aliases": []},
+    {"id": "main-conversation-line", "kind": "Signal", "aliases": []},
+    {"id": "outcome-signal", "kind": "Signal", "aliases": []},
+    {"id": "redo", "kind": "Signal", "aliases": []},
+    {"id": "weekly-review", "kind": "Signal", "aliases": []},
+    {"id": "tier-decision", "kind": "Signal", "aliases": []}
+  ],
+  "ambiguous": []
+}

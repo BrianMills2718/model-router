@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A3",
+ "title": "Every new session of mine starts on Sonnet, not Opus, unless I pick otherwise.",
+ "stakeholder": "Brian",
+ "concern": "Every new session of mine starts on Sonnet, not Opus, unless I pick otherwise.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}

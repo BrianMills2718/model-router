@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A9",
+ "title": "In a new session, a mechanical subagent task runs on Haiku at low effort and a reviewer runs on Sonnet or higher.",
+ "stakeholder": "Brian",
+ "concern": "In a new session, a mechanical subagent task runs on Haiku at low effort and a reviewer runs on Sonnet or higher.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}

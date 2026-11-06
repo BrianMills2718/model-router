@@ -1,0 +1,32 @@
+{
+ "id": "model-router-A6",
+ "title": "I can see how much of my spend is the main conversation, how much of it is Opus, and what Sonnet would have cost.",
+ "stakeholder": "Brian",
+ "concern": "I can see how much of my spend is the main conversation, how much of it is Opus, and what Sonnet would have cost.",
+ "intent": [
+  "understand",
+  "decide"
+ ],
+ "informationStructure": [
+  "document"
+ ],
+ "tasks": [
+  "inspect",
+  "trace"
+ ],
+ "scale": {
+  "items": 10,
+  "density": "low"
+ },
+ "interaction": {
+  "mode": "exploratory",
+  "dynamics": "static"
+ },
+ "constraints": {
+  "mobile": true,
+  "accessibility": "baseline",
+  "realtime": false,
+  "provenance": true,
+  "allowAggregation": true
+ }
+}

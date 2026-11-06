@@ -1,0 +1,131 @@
+{
+ "schema_version": "1.0",
+ "record_type": "open_questions",
+ "questions": [
+  {
+   "id": "Q1",
+   "short": "Do Haiku rules hold in live use?",
+   "question": "Does the new easy-tier rubric (Haiku only for mechanical work with a cheap check, effort low, medium on long prompts) send only safe work to Haiku in live sessions?",
+   "blocks": "whether the next plan widens the Haiku tier or narrows it",
+   "resolves_with": "No argument settles it, because the rubric has not yet run in a session that loaded it. Read the first week of simple-tier rows in ~/projects/data/logs/router/*.tsv and the weekly review, then read a sample of simple-tier transcripts in full; the result changes the Haiku share rule and nothing else.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "hooks/lib/pricing.ts:53",
+    "docs/planning/research-routing-best-practices.md:106"
+   ],
+   "touches": [
+    "tier",
+    "classifier-verdict",
+    "effort-cap"
+   ]
+  },
+  {
+   "id": "Q2",
+   "short": "Do outcome signals miss silent errors?",
+   "question": "The outcome labels (failed tools, rescued, redone, fixer started within 30 minutes) catch loud failure; how often does a Haiku or Sonnet run give a wrong answer none of them sees?",
+   "blocks": "whether the weekly review may propose lowering a tier on a clean week",
+   "resolves_with": "Argument settles the direction: absence of a retry is weak evidence, and the review already says so. Sampling traces is the only way to measure the rate, so lowering proposals carry 'read these traces' and a session samples before accepting.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "docs/planning/research-routing-best-practices.md:130",
+    "docs/planning/evidence/router-weekly-review-sample.md:3"
+   ],
+   "touches": [
+    "outcome-signal",
+    "weekly-review",
+    "tier-decision"
+   ]
+  },
+  {
+   "id": "Q3",
+   "short": "Research claims not yet re-checked",
+   "question": "The research report marks its Haiku figures (32% cost saved for about 4 points of pass rate; low effort skips checks in long prompts) as read from Anthropic pages but says load-bearing claims need a re-check; do the pages still say that?",
+   "blocks": "the effort cap values for Haiku (low, medium over 200,000 characters)",
+   "resolves_with": "Prior art settles it: re-read the two cited pages (optimizing-for-cost-and-intelligence, effort) and compare the numbers. No test needed.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "docs/planning/research-routing-best-practices.md:24",
+    "docs/planning/research-routing-best-practices.md:41"
+   ],
+   "touches": [
+    "effort-cap",
+    "tier"
+   ]
+  },
+  {
+   "id": "Q4",
+   "short": "Can a plugin set the main model?",
+   "question": "Can any plugin mechanism set the main conversation's model or effort? The report read only the first 100k of 288k characters of the hooks reference and says to grep the tail for setModel and CLAUDE_ENV_FILE before relying on 'impossible'.",
+   "blocks": "whether README 'Limits' may state that the main-model lever is manual",
+   "resolves_with": "Prior art: grep the unread tail of the hooks and model-config pages for setModel, model in hook output and CLAUDE_ENV_FILE.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "docs/planning/research-routing-best-practices.md:64",
+    "README.md:77"
+   ],
+   "touches": [
+    "main-model-lever",
+    "main-conversation"
+   ]
+  },
+  {
+   "id": "Q5",
+   "short": "Who applies a tier decision?",
+   "question": "When a session accepts a weekly decision (for example lower general-purpose from hard to standard), does it edit the tier rules directly and ship, or does a pull request wait for Brian?",
+   "blocks": "whether accepted decisions change the rules without further review",
+   "resolves_with": "A business and priority call about how much change goes unreviewed; Brian decides. Agents decide technical tradeoffs, so this asks only about review of routing changes that spend his limits.",
+   "owner": "brian",
+   "status": "open",
+   "recommendation": "An agent session accepts or rejects each decision after reading the traces, ships the rule change through ship, and records the decision; Brian reads the weekly page only if he wants to.",
+   "default": "Recommendation applies: the session that reads the weekly review decides and ships; nothing waits for Brian.",
+   "blocking": false,
+   "sources": [
+    "README.md:87",
+    "docs/planning/evidence/router-weekly-review-sample.md:34"
+   ],
+   "touches": [
+    "tier-decision",
+    "weekly-review"
+   ]
+  },
+  {
+   "id": "Q6",
+   "short": "Is the report's redo match right?",
+   "question": "After matching a redo on identical task text instead of the description stem, are planned rounds no longer flagged and real repeats still caught?",
+   "blocks": "trusting the redo count in the weekly review",
+   "resolves_with": "One counterexample settles it. The 2026-11-05 report went from 3 redos to 0, and the new test asserts a planned round is not a redo while an identical-task repeat is.",
+   "owner": "agent",
+   "status": "resolved",
+   "evidence": "/home/brian/code2/workspace/tests/test_router_report.py (a planned round is not a redo; an identical task is); report for 2026-11-05 shows Redos: 0 (docs/planning/evidence/router-report-2026-11-05.md:7)",
+   "sources": [
+    "docs/planning/evidence/router-report-2026-11-05.md:7"
+   ],
+   "touches": [
+    "redo",
+    "daily-report"
+   ]
+  },
+  {
+   "id": "Q7",
+   "short": "Do judging agents stay off Haiku?",
+   "question": "Can pace, rate-limit pressure or the classifier push an architect, Plan, reviewer, researcher or *-reviewer agent onto Haiku?",
+   "blocks": "the rule 'design, review and anything Brian reads never go to Haiku'",
+   "resolves_with": "A test settles it: the router tests drive each judging type through the pressure paths.",
+   "owner": "agent",
+   "status": "resolved",
+   "evidence": "hooks/router.test.ts:106 'judging agents never go to Haiku' passes in the 118-test run (claude plugin test ., exit 0, docs/planning/checks.txt)",
+   "sources": [
+    "hooks/router.test.ts:106",
+    "hooks/lib/pricing.ts:245"
+   ],
+   "touches": [
+    "judging-agent",
+    "pressure"
+   ]
+  }
+ ]
+}

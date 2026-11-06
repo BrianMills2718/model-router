@@ -1,0 +1,595 @@
+{
+  "availability": {
+    "status": "available",
+    "present": [],
+    "missing": [],
+    "note": null
+  },
+  "primary": {
+    "representation": "argument-page",
+    "interaction": [],
+    "implementation": {
+      "renderer": "markdown",
+      "layout": null,
+      "notes": [
+        "supports narrative (+7)",
+        "a static table, list or argument belongs in the document as Markdown (+8)"
+      ],
+      "playbook": null
+    }
+  },
+  "alternatives": [
+    "answer-receipt-card"
+  ],
+  "alternativesDetailed": [
+    {
+      "representation": "answer-receipt-card",
+      "relationshipToPrimary": "complement",
+      "reason": "A portfolio page argues a claim; a run's answer-receipt card is checkable evidence for one of its sections.",
+      "source": "reviewed"
+    }
+  ],
+  "avoid": [
+    {
+      "pattern": "staged-explanatory-machine",
+      "reason": "has no static form, and the page is static",
+      "kind": "ruled-out"
+    },
+    {
+      "pattern": "scroll-linked-explainer",
+      "reason": "has no static form, and the page is static",
+      "kind": "ruled-out"
+    },
+    {
+      "pattern": "composite-linked-view",
+      "reason": "has no static form, and the page is static",
+      "kind": "ruled-out"
+    },
+    {
+      "pattern": "explorable-simulation",
+      "reason": "has no static form, and the page is static",
+      "kind": "ruled-out"
+    },
+    {
+      "pattern": "schema-explorer",
+      "reason": "has no static form, and the page is static",
+      "kind": "ruled-out"
+    }
+  ],
+  "rationale": [
+    "structure: document (+5)",
+    "intent: understand, decide (+6)",
+    "task: inspect, trace (+8)",
+    "interaction: exploratory (+2)",
+    "dynamics: static (+3)",
+    "density: low (+2)",
+    "supports provenance (+2)",
+    "strong mobile fit (+1)"
+  ],
+  "assumptions": [],
+  "interfacePatterns": [
+    {
+      "id": "linked-planning-and-architecture-lenses",
+      "title": "Linked work and system lenses",
+      "family": "multi-view architecture",
+      "score": 14,
+      "reason": "supports inspect, trace; serves understand, decide",
+      "apply": [
+        "Name the question answered by each lens",
+        "Keep edge semantics distinct per lens",
+        "Carry stable semantic selection across views",
+        "Keep one inspector and provenance grammar"
+      ],
+      "avoid": [
+        "Combining work dependencies and system interfaces in one graph",
+        "Calling a work graph an architecture diagram",
+        "Changing the selected subject silently when switching lenses"
+      ],
+      "implementationHints": [
+        "semantic-lens-toggle",
+        "linked-highlighting",
+        "stable-ids",
+        "shared-inspector"
+      ],
+      "sources": [
+        {
+          "name": "C4 model diagrams",
+          "url": "https://c4model.com/diagrams",
+          "role": "architecture-view-reference"
+        },
+        {
+          "name": "arc42 documentation structure",
+          "url": "https://arc42.org/",
+          "role": "architecture-concern-reference"
+        }
+      ]
+    },
+    {
+      "id": "primary-detail-inspector",
+      "title": "Stable overview with detail inspector",
+      "family": "progressive-disclosure",
+      "score": 13,
+      "reason": "supports inspect; serves understand, decide; fits document",
+      "apply": [
+        "Persist selection",
+        "Lead with the decision-relevant summary",
+        "Step down to evidence and source",
+        "Keep close and keyboard navigation explicit"
+      ],
+      "avoid": [
+        "Opening a new page for every detail",
+        "Showing internal IDs before human-readable meaning",
+        "Relying on hover"
+      ],
+      "implementationHints": [
+        "details-on-demand",
+        "linked-highlighting",
+        "provenance-inspector"
+      ],
+      "sources": [
+        {
+          "name": "PatternFly primary-detail",
+          "url": "https://www.patternfly.org/patterns/primary-detail/design-guidelines/",
+          "role": "behavior-reference"
+        },
+        {
+          "name": "Carbon disclosure patterns",
+          "url": "https://carbondesignsystem.com/patterns/overview/",
+          "role": "behavior-reference"
+        }
+      ]
+    },
+    {
+      "id": "architecture-context-to-component",
+      "title": "Architecture from context to components",
+      "family": "architecture",
+      "score": 11,
+      "reason": "supports inspect, trace; serves understand",
+      "apply": [
+        "Show current and proposed elements distinctly",
+        "Name boundary ownership",
+        "Label arrows by their exact relationship",
+        "Expose contracts and material omissions in the inspector"
+      ],
+      "avoid": [
+        "One diagram containing every abstraction level",
+        "Unlabeled arrows",
+        "Boxes with no owner or contract meaning"
+      ],
+      "implementationHints": [
+        "c4-inspired-levels",
+        "boundary-node-types",
+        "typed-edges",
+        "details-on-demand"
+      ],
+      "sources": [
+        {
+          "name": "C4 model",
+          "url": "https://c4model.com/",
+          "role": "architecture-view-reference"
+        },
+        {
+          "name": "Structurizr DSL",
+          "url": "https://docs.structurizr.com/dsl",
+          "role": "text-model-reference"
+        }
+      ]
+    },
+    {
+      "id": "project-graph-home",
+      "title": "Project graph as home",
+      "family": "navigation",
+      "score": 11,
+      "reason": "supports inspect, trace; serves understand",
+      "apply": [
+        "Keep the active path visible",
+        "Use status labels as well as color",
+        "Open detail without replacing the graph",
+        "Collapse completed or secondary groups"
+      ],
+      "avoid": [
+        "Treating every datum as a node",
+        "Using animation without an execution meaning",
+        "Hiding blocked work with filters"
+      ],
+      "implementationHints": [
+        "react-flow",
+        "elkjs",
+        "details-on-demand",
+        "path-highlighting"
+      ],
+      "sources": [
+        {
+          "name": "React Flow",
+          "url": "https://reactflow.dev/",
+          "role": "implementation"
+        },
+        {
+          "name": "PatternFly Topology",
+          "url": "https://github.com/patternfly/react-topology",
+          "role": "behavior-reference"
+        }
+      ]
+    },
+    {
+      "id": "requirement-to-evidence-traceability",
+      "title": "Requirement-to-evidence assurance map",
+      "family": "assurance",
+      "score": 11,
+      "reason": "supports inspect, trace; serves decide",
+      "apply": [
+        "Trace each criterion to architecture, work, and evidence",
+        "Distinguish covered, partial, and missing",
+        "Keep assessor questions next to the criterion",
+        "Separate machine checks from human acceptance"
+      ],
+      "avoid": [
+        "Using a single completion percentage",
+        "Treating test presence as proof of the requirement",
+        "Hiding unknowns in footnotes"
+      ],
+      "implementationHints": [
+        "traceability-matrix",
+        "coverage-state",
+        "assessor-question",
+        "linked-inspector"
+      ],
+      "sources": [
+        {
+          "name": "GOV.UK check answers",
+          "url": "https://design-system.service.gov.uk/patterns/check-answers/",
+          "role": "review-structure-reference"
+        },
+        {
+          "name": "GitHub checks",
+          "url": "https://docs.github.com/en/rest/checks",
+          "role": "evidence-status-reference"
+        }
+      ]
+    }
+  ],
+  "quality": {
+    "method": "document-table-quality",
+    "compositionMethod": "one-page-composition-quality",
+    "workflow": [
+      "render-in-the-target-viewer",
+      "read-each-row-against-its-source",
+      "check-target-width",
+      "cold-reader-lookup",
+      "capture-visual-regression",
+      "state-the-title-and-the-one-question-first",
+      "sketch-the-whole-on-one-page-before-any-section",
+      "match-each-part-to-its-job",
+      "let-structure-emerge-from-the-content",
+      "give-the-whole-room-to-breathe",
+      "check-the-sixty-second-read-with-a-cold-reader",
+      "date-and-version-the-page"
+    ],
+    "hardChecks": [
+      "header-row-names-every-condition-and-the-outcome",
+      "rows-follow-the-order-the-source-applies-them",
+      "caption-or-lead-line-says-how-a-row-is-chosen",
+      "every-cell-readable-without-hover-or-horizontal-scroll-at-the-target-width",
+      "table-renders-in-the-target-markdown-viewer",
+      "outcomes-quote-the-exact-text-or-value-the-source-produces",
+      "title-states-what-this-is-and-for-whom",
+      "whole-design-visible-on-one-screen-at-the-target-viewport",
+      "cold-reader-gets-the-mechanism-in-sixty-seconds",
+      "form-matches-job-lists-scan-tables-compare-flows-transition-maps-connect",
+      "same-object-same-mark-across-every-view"
+    ],
+    "softChecks": [
+      "one-condition-phrased-the-same-way-in-every-row",
+      "gaps-and-overlaps-between-rows-named-in-the-text",
+      "rows-that-write-or-change-state-marked",
+      "one-primary-drawing-with-callouts-not-parallel-columns-of-text",
+      "attributed-claims-traced-to-source-no-invented-items",
+      "structural-devices-encode-information-not-decoration",
+      "no-generated-defaults-cream-serif-card-kit-caps-labels-middle-dots",
+      "each-concept-drawn-in-a-shape-that-mirrors-its-behaviour",
+      "white-space-separates-groups-and-carries-hierarchy",
+      "size-and-weight-follow-importance",
+      "structure-earned-by-content-not-imposed-taxonomy",
+      "page-carries-its-date-and-version",
+      "a-person-would-pin-it-on-a-wall",
+      "each-element-encodes-its-answer-visually-text-only-where-no-visual-form-fits",
+      "each-drawing-shows-relations-a-list-cannot-linear-sequences-are-lists",
+      "one-element-dominates-by-size-weight-or-contrast",
+      "reading-order-is-obvious-without-instructions",
+      "gap-between-groups-larger-than-gap-within",
+      "elements-share-a-small-set-of-edges",
+      "same-role-same-treatment-everywhere",
+      "every-mark-carries-information",
+      "every-encoding-explained-on-the-same-screen",
+      "one-highlighted-state-not-several",
+      "object-count-within-density-budget-or-aggregated",
+      "no-ellipsis-or-clipped-text-in-rendered-page",
+      "phone-and-laptop-each-have-a-layout-that-uses-their-width",
+      "picking-an-item-lights-its-counterparts-in-every-open-view-and-can-be-cleared",
+      "agent-adds-to-the-readers-choices-unless-asked-to-replace-verified-with-live-asks",
+      "checks-measure-painted-geometry-after-fonts-load-at-each-supported-viewport",
+      "transient-explanations-are-at-most-five-short-points",
+      "every-navigation-item-has-content-and-stays-or-shows-its-way-back",
+      "embedded-tool-has-no-label-clashing-with-host-full-area-and-honest-status"
+    ],
+    "usabilityChecks": [
+      "headline-and-picture-alone-convey-the-point-since-that-is-all-most-people-read",
+      "no-block-of-prose-longer-than-the-drawing-it-explains",
+      "reader-can-point-to-where-any-one-fact-lives"
+    ],
+    "repairOrder": [
+      "split-a-wide-table-or-move-long-cells-to-numbered-notes",
+      "reorder-rows-to-the-source-order",
+      "add-the-how-a-row-is-chosen-line",
+      "replace-paraphrased-outcomes-with-exact-text",
+      "rewrite-the-title-as-the-one-question",
+      "move-the-whole-onto-one-screen-before-polishing-any-part",
+      "replace-prose-columns-with-one-drawing-plus-callouts",
+      "cut-imposed-sections-until-content-asks-for-them",
+      "unify-marks-across-views",
+      "never-fix-by-hiding-source-or-caveat-truth"
+    ],
+    "notApplicable": [
+      {
+        "id": "relationships-drawn-not-implied-by-adjacency-or-links",
+        "because": "relationships-drawn applies when relational / graph / hypergraph / diagram / map"
+      },
+      {
+        "id": "every-object-reveals-more-on-click-nothing-is-a-dead-end",
+        "because": "overview-zoom-detail applies when graph / dashboard / application-ui / explorer and a reader can interact"
+      },
+      {
+        "id": "overlapping-views-merged-into-one-view-with-forms-not-thinned",
+        "because": "merge-overlapping-views applies when composite-view / several views or tour steps of the same subject"
+      },
+      {
+        "id": "argument-pages-follow-the-speakers-order-and-keep-their-reasons",
+        "because": "follow-the-presenters-argument-order applies when presentation / guided / a guided page or tour presents a specific person's argument, proposal or design"
+      },
+      {
+        "id": "drawing-laid-out-by-engine-with-content-and-optional-motion-layers",
+        "because": "auto-layout-then-enrich applies when graph / diagram / a node-and-link drawing of parts, actors or flows"
+      },
+      {
+        "id": "space-and-time-shown-together-when-the-subject-changes-over-time",
+        "because": "space-and-time-together applies when over-time / planning / operational"
+      },
+      {
+        "id": "add-reveal-on-click-for-every-dead-end",
+        "because": "repair for overview-zoom-detail, which applies when graph / dashboard / application-ui / explorer and a reader can interact"
+      }
+    ]
+  },
+  "compositionPlan": {
+    "title": "I can see which tier rules the real outcomes support changing, with the transcripts to read.",
+    "question": "I can see which tier rules the real outcomes support changing, with the transcripts to read.",
+    "audience": "Brian",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "primary": {
+      "representation": "argument-page",
+      "form": "argument",
+      "carries": []
+    },
+    "secondary": [
+      {
+        "id": "legend",
+        "job": "explain every encoding on the same screen"
+      },
+      {
+        "id": "status-line",
+        "job": "source, revision, freshness, and what is missing"
+      }
+    ],
+    "readingOrder": [
+      "title",
+      "primary",
+      "legend",
+      "status-line"
+    ],
+    "groups": [],
+    "hierarchy": {
+      "levels": [
+        "title",
+        "primary",
+        "secondary",
+        "detail"
+      ],
+      "typeSizes": 3
+    },
+    "marks": {},
+    "links": [],
+    "emphasis": {
+      "channel": "one highlight colour",
+      "state": "selected"
+    },
+    "densityBudget": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "maxObjects": 12,
+      "minMarginPx": 24,
+      "items": 10,
+      "withinBudget": true,
+      "ifOver": "aggregate, filter, or reveal on demand; do not shrink"
+    },
+    "revealOnClick": {},
+    "designGaps": [],
+    "coldReadTarget": "After a minute a newcomer can say what the page answers: I can see which tier rules the real outcomes support changing, with the transcripts to read.",
+    "heuristics": [
+      "one-question-title",
+      "whole-on-one-screen",
+      "single-focal-point",
+      "hierarchy-by-size-and-weight",
+      "reading-order-follows-layout",
+      "proximity-groups",
+      "similarity-means-sameness",
+      "alignment-creates-structure",
+      "repetition-builds-language",
+      "white-space-carries-hierarchy",
+      "data-ink-and-chartjunk",
+      "recognition-over-recall",
+      "visibility-of-status",
+      "preattentive-pop-out",
+      "form-matches-job",
+      "quote-source-claims-no-invented-symmetry",
+      "structure-encodes-information",
+      "avoid-generated-defaults",
+      "shape-mirrors-behaviour",
+      "one-drawing-with-callouts",
+      "structure-earned-not-imposed",
+      "sixty-second-cold-read",
+      "density-budget",
+      "picture-before-prose",
+      "diagram-earns-its-space",
+      "no-truncated-text",
+      "layout-fits-the-device",
+      "linked-highlighting-across-views",
+      "agent-changes-add-to-the-readers-choices",
+      "verify-what-paints",
+      "short-points-not-paragraphs",
+      "navigation-holds-only-live-views",
+      "embedded-tools-fit-their-host"
+    ],
+    "sketchInstructions": [
+      "Put one short title at the top that states what this page answers and for whom.",
+      "Everything important is visible at once; no scrolling implied.",
+      "One main drawing occupies most of the area; other elements are visibly smaller and lighter.",
+      "Use at most three type sizes; headings heavier than body; important boxes larger.",
+      "Entry point top-left; the thing to do next bottom-right; if the order differs, number the parts.",
+      "Related items touch or nearly touch; unrelated items have clear gaps between them.",
+      "Every object of one kind is drawn the same way in every picture of the set.",
+      "Left edges of text and boxes line up on a few shared vertical lines.",
+      "Reuse one card style, one label style, and one legend position across the set.",
+      "Leave generous empty space around the main drawing and between groups.",
+      "No decorative borders, shadows, icons, or gridlines that carry no meaning.",
+      "Any colour or badge used has its meaning shown right there.",
+      "A small status line shows source and date.",
+      "Exactly one kind of thing is highlighted; everything else is grey scale.",
+      "Draw each part in the form that fits its job: list, table, flow, or map.",
+      "Every claim attributed to a person points at where they said it; leave a table cell empty rather than fill it.",
+      "Only draw a border, number or label where it tells the reader something; never number things that are not a sequence.",
+      "Before drawing, ask whether this page would look the same for an unrelated subject; if so, change the defaults.",
+      "Give each concept the shape of its behaviour; do not draw equal boxes for things that behave differently.",
+      "One large drawing with a few short labels pointing at parts of it; no columns of text.",
+      "Only draw a section or tab if the content shown needs it.",
+      "A stranger should get the point from the title and the main drawing alone.",
+      "Show a handful of objects at readable size, not dozens at tiny size.",
+      "Show each answer as a picture first (a path, bars, a strip of days, a map); use a sentence only where nothing visual says it better.",
+      "Draw boxes and arrows only where things branch, loop back meaningfully, connect many-to-many, or pass typed data between ports; a straight chain of steps is a numbered list.",
+      "No ellipses: boxes and labels grow to fit their whole text; lists of points are bullets.",
+      "Sketch both the phone layout and the laptop layout.",
+      "Draw two views side by side with one item picked in the first and its counterparts glowing in the second, everything else greyed, and a Clear highlight button.",
+      "Show the chat answering 'Show me the timeline' with the timeline opened alongside the views already open, and a note of what the agent opened.",
+      "Annotate the sketch with the three viewports the checks run at.",
+      "Write every tour step or callout as one to five short bullet points, never a paragraph.",
+      "Show only tabs that have content for this subject; draw any item that opens another page as a link, not a tab.",
+      "Draw the host switch above the embed with distinct option names, the embed filling the panel, and its status line stating what was checked when."
+    ],
+    "checks": [
+      "title-states-what-this-is-and-for-whom",
+      "whole-design-visible-on-one-screen-at-the-target-viewport",
+      "one-element-dominates-by-size-weight-or-contrast",
+      "size-and-weight-follow-importance",
+      "reading-order-is-obvious-without-instructions",
+      "gap-between-groups-larger-than-gap-within",
+      "same-object-same-mark-across-every-view",
+      "elements-share-a-small-set-of-edges",
+      "same-role-same-treatment-everywhere",
+      "white-space-separates-groups-and-carries-hierarchy",
+      "every-mark-carries-information",
+      "every-encoding-explained-on-the-same-screen",
+      "page-carries-its-date-and-version",
+      "one-highlighted-state-not-several",
+      "form-matches-job-lists-scan-tables-compare-flows-transition-maps-connect",
+      "attributed-claims-traced-to-source-no-invented-items",
+      "structural-devices-encode-information-not-decoration",
+      "no-generated-defaults-cream-serif-card-kit-caps-labels-middle-dots",
+      "each-concept-drawn-in-a-shape-that-mirrors-its-behaviour",
+      "one-primary-drawing-with-callouts-not-parallel-columns-of-text",
+      "structure-earned-by-content-not-imposed-taxonomy",
+      "cold-reader-gets-the-mechanism-in-sixty-seconds",
+      "object-count-within-density-budget-or-aggregated",
+      "each-element-encodes-its-answer-visually-text-only-where-no-visual-form-fits",
+      "each-drawing-shows-relations-a-list-cannot-linear-sequences-are-lists",
+      "no-ellipsis-or-clipped-text-in-rendered-page",
+      "phone-and-laptop-each-have-a-layout-that-uses-their-width",
+      "picking-an-item-lights-its-counterparts-in-every-open-view-and-can-be-cleared",
+      "agent-adds-to-the-readers-choices-unless-asked-to-replace-verified-with-live-asks",
+      "checks-measure-painted-geometry-after-fonts-load-at-each-supported-viewport",
+      "transient-explanations-are-at-most-five-short-points",
+      "every-navigation-item-has-content-and-stays-or-shows-its-way-back",
+      "embedded-tool-has-no-label-clashing-with-host-full-area-and-honest-status"
+    ]
+  },
+  "viewSpec": {
+    "version": "0.1",
+    "id": "model-router-A5--argument-page",
+    "concern": "I can see which tier rules the real outcomes support changing, with the transcripts to read.",
+    "viewpoint": {
+      "stakeholder": "Brian",
+      "intent": [
+        "understand",
+        "decide"
+      ],
+      "tasks": [
+        "inspect",
+        "trace"
+      ]
+    },
+    "representationContext": {
+      "role": null,
+      "abstractionLevel": null,
+      "concernHierarchy": null
+    },
+    "availability": {
+      "status": "available",
+      "present": [],
+      "missing": [],
+      "note": null
+    },
+    "projection": {
+      "entities": [],
+      "relationships": [],
+      "focus": null,
+      "operations": []
+    },
+    "representation": {
+      "pattern": "argument-page",
+      "family": "narrative",
+      "dynamics": "static",
+      "layout": "claim-first-sections"
+    },
+    "interactions": [
+      {
+        "trigger": "select visual mark",
+        "effect": "open persistent details",
+        "purpose": "Reveal model properties and provenance on demand."
+      },
+      {
+        "trigger": "select model element",
+        "effect": "highlight related path",
+        "purpose": "Expose relationship chains without losing context."
+      }
+    ],
+    "provenance": {
+      "enabled": true,
+      "linkVisualMarksToModel": true,
+      "showDerivedCalculation": true,
+      "showEvidence": true
+    },
+    "rationale": [
+      "structure: document (+5)",
+      "intent: understand, decide (+6)",
+      "task: inspect, trace (+8)",
+      "interaction: exploratory (+2)",
+      "dynamics: static (+3)",
+      "density: low (+2)",
+      "supports provenance (+2)",
+      "strong mobile fit (+1)"
+    ]
+  }
+}

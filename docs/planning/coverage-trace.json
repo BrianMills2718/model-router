@@ -1,0 +1,165 @@
+{
+  "record_type": "goal_coverage_trace",
+  "trace_id": "planning-compliance/goal-coverage/20261106T164242-4f8acc1d",
+  "task": "planning_compliance.goal_coverage",
+  "model": "claude-code/sonnet",
+  "requested_model": "claude-code/sonnet",
+  "judged_at": "2026-11-06T16:43:56-0500",
+  "cost_usd": 0.0,
+  "prompt_template": "plugins/company-planning/skills/planning-compliance/scripts/coverage_prompt.yaml",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You check whether a set of acceptance criteria still asks for what a person asked for.\nAgents write acceptance criteria from a person's request, and they tend to rewrite it into\nsomething easier to build: a word like \"graph\" or \"across documents\" disappears and nothing\nnotices. Your job is to notice.\n\nStep 1. Split every quote under ASKED_BY into its distinct requirements: each separate thing\nthe delivered outcome must be, do or show. Split finely: \"a shared map of every store that\nstaff can filter and print\" is five requirements (a map; shared; every store; can be\nfiltered; can be printed). Keep the person's own nouns: a requirement named \"map\" stays\n\"map\", never \"list\" or \"view\". For each requirement give:\n  - id: R1, R2, ... in order;\n  - requirement: a short name in the person's own words (2 to 6 words);\n  - quote: the exact words from the quote that state it, copied character for character\n    (keep their typos);\n  - asked_by_index: the 1-based number of the ASKED_BY quote it comes from;\n  - kind: \"outcome\" (something the delivered thing must be or do), \"constraint\" (a rule about\n    how it is shown or built that a criterion can still check), or \"process\" (a statement\n    about how the planning work or the acceptance criteria themselves are written, which no\n    demonstration of the outcome could show). Use \"process\" only when no working interface\n    could ever demonstrate it.\nWhen two quotes state the same requirement, list it once and quote the clearer one.\nWhen the user message lists REQUIREMENTS ALREADY CUT, do not split those words again: copy each\none unchanged (same id, requirement, quote, asked_by_index and kind) while its quote is still in\nASKED_BY, and cut new requirements only for words they do not cover, numbered after the highest id.\n\nStep 2. For each requirement, decide which criteria cover it. A criterion covers a\nrequirement only when its criterion, demonstration or expected result would fail if the\nrequirement were not met. A criterion that is merely compatible with the requirement, or\nthat is about something nearby, does not cover it. For example a criterion \"open the store\npage and see every store's address\" does not cover \"map\": a list of addresses passes it. List the\ncovering criterion ids, possibly none, and say why in one sentence. Then give the extent:\n\"full\" when the listed criteria together would fail for any way of not meeting the\nrequirement; \"partial\" when they check only one part or one case of it, so something that\nmisses the rest still passes (say in \"missing\" what is left unasked); \"none\" when no\ncriterion covers it.\n\nStep 3. If a requirement is covered by no criterion, check DEFERRALS. A requirement is\ndeferred only when a deferral's words, said by the person, approve leaving that requirement\nout for now. Give the deferral's number, or 0 when none applies. Never treat an agent's note,\na plan or a criterion's own wording as a deferral.\n\nStep 4. For each requirement of kind \"outcome\", say whether the OUTCOME line keeps it, in\nsubstance, and why. An outcome line that says \"staff look up any store\" does not keep\n\"map\", \"filter\" or \"print\".\n\nBe strict and literal. Judge only from the text given."
+    },
+    {
+      "role": "user",
+      "content": "ASKED_BY (the person's own words):\n\n1. Brian, 2026-11-06: <<<why dont we just update that now across sessions and haiku in some places also and the reaosnign level and we should eawrn the ebst rpactics on this bth form resarch and first rprinciples and set upa feedback ssystme so ti improves over time>>>\n\n\n\nREQUIREMENTS ALREADY CUT (from the last judgment):\n\nR1 [outcome] \"apply update across sessions\", quote 1: <<<update that now across sessions>>>\n\nR2 [outcome] \"Haiku for some work\", quote 1: <<<haiku in some places also>>>\n\nR3 [outcome] \"set reasoning level\", quote 1: <<<the reaosnign level>>>\n\nR4 [outcome] \"learn from research\", quote 1: <<<eawrn the ebst rpactics on this bth form resarch>>>\n\nR5 [outcome] \"learn from first principles\", quote 1: <<<first rprinciples>>>\n\nR6 [outcome] \"set up feedback system\", quote 1: <<<set upa feedback ssystme>>>\n\nR7 [outcome] \"feedback improves rules over time\", quote 1: <<<so ti improves over time>>>\n\n\nOUTCOME (the agent's one-line restatement):\n<<<Brian's subagent routing sends some work to Haiku, sets the reasoning level by tier, applies across sessions, rests on research and first principles, and has a feedback system that improves the rules over time.>>>\n\nCRITERIA:\n\n[A1] \n  criterion: I can see which subagent jobs go to Haiku and that design and review never do.\n  demonstration: (1) Open the README page (2) Find the table under 'How it routes' and read the 'easy' row (3) Read the bullet 'Judging agents never get Haiku' \n  expected: The easy row names Haiku 5.5 and lists mechanical jobs with a cheap check (renames, searches, log or test-output summaries, running tests, version bumps). The judging-agents bullet lists architect, Plan, reviewer, code-review, project-brain, researcher and anything ending in -reviewer as Sonnet or higher, even under rate-limit pressure.\n\n[A2] \n  criterion: I can see the reasoning level each tier gets and where each number came from.\n  demonstration: (1) Open the README page (2) Read the Effort column of the table under 'How it routes' (3) Read the paragraph that starts 'Why these defaults' \n  expected: Easy is low (medium when the prompt is over about 50k tokens), normal is medium at most, hard is high at most, long is unchanged. The paragraph gives a reason for each number and a Source line naming your words on #162 and the research report sections.\n\n[A3] \n  criterion: Every new session of mine starts on Sonnet, not Opus, unless I pick otherwise.\n  demonstration: (1) Start a new Claude Code session in any folder (2) Type /model and read which model is current (3) Open the README page and read the first bullet under 'Limits' \n  expected: /model shows Sonnet as the current model. The README bullet says a plugin cannot change the main model, that the levers are the settings default (sonnet) and /model or /effort, and gives the 2026-11-05 main-conversation cost.\n\n[A4] \n  criterion: I can see that the rules rest on research and first principles, with the source of each one.\n  demonstration: (1) Open the research report page (2) Read section 0, the five-line bottom line (3) Read section 4, the first-principles cost formula (4) Go back to the README and check that each rule that was added carries a 'Source:' naming either your words or 'inferred by agent' with the basis \n  expected: The report states its evidence per claim, marks which claims were read directly and which are inference, and has a first-principles section. Each new rule in the README or code comments has a Source line.\n\n[A5] \n  criterion: I can see which tier rules the real outcomes support changing, with the transcripts to read.\n  demonstration: (1) Open the weekly review sample page (2) Read the table of agent type, tier, runs, bad runs and cost (3) Read the decision at the bottom: its evidence, its status and the transcripts to read (4) Read the sentence about a clean week being weak evidence \n  expected: Every row shows runs and bad runs by agent type and tier. A proposed decision names the change, its evidence, its status 'proposed' and the transcripts to read, and never lowers a judging agent.\n\n[A6] \n  criterion: I can see how much of my spend is the main conversation, how much of it is Opus, and what Sonnet would have cost.\n  demonstration: (1) Open the daily report sample page (2) Read the line that starts 'Main conversations' (3) Read the 'Spend by model' table and check the Opus main figure matches the line \n  expected: The line gives main spend ($514.06), the Opus part ($454.05, 88%) and the cost of the same Opus tokens on Sonnet ($227.02). The table's Opus main figure is $454.05.\n\n[A7] \n  criterion: A planned second review round is not reported as a redo.\n  demonstration: (1) Open the daily report sample page (2) Go to the section 'Redos (a stronger model repeated an earlier run)' (3) Look for 'Cold review round 2' \n  expected: The summary says 'Redos: 0' and the section lists none; 'Cold review round 2' does not appear.\n\n[A8] \n  criterion: When I or a session accepts a proposed tier change, the rule actually changes and the decision shows who accepted it and why.\n  demonstration: (1) Open the weekly review page for the first week after the new rules (2026-W46) (2) Find a decision marked accepted (3) Open hooks/lib/pricing.ts at the commit the decision names and read the changed tier or effort value (4) Read the decision's note for who accepted it and which transcripts they read \n  expected: The accepted decision names the commit that changed the rule, the rule's new value matches the decision, and the note lists the transcripts read before accepting.\n\n[A9] \n  criterion: In a new session, a mechanical subagent task runs on Haiku at low effort and a reviewer runs on Sonnet or higher.\n  demonstration: (1) Start a new Claude Code session with the router loaded (2) Ask it to run a subagent that searches the repository for a word (3) Press ctrl+x tab and the agent's number in the pane and read its Why line (4) Ask it to run a reviewer subagent on a small diff and read that row \n  expected: The search agent's row shows the easy tier, Haiku 5.5 and 'effort ≤ low'. The reviewer row shows Sonnet or Opus, never Haiku.\n\n\nDEFERRALS:\n\nnone recorded"
+    }
+  ],
+  "answer": {
+    "requirements": [
+      {
+        "id": "R1",
+        "requirement": "apply update across sessions",
+        "quote": "update that now across sessions",
+        "asked_by_index": 1,
+        "kind": "outcome"
+      },
+      {
+        "id": "R2",
+        "requirement": "Haiku for some work",
+        "quote": "haiku in some places also",
+        "asked_by_index": 1,
+        "kind": "outcome"
+      },
+      {
+        "id": "R3",
+        "requirement": "set reasoning level",
+        "quote": "the reaosnign level",
+        "asked_by_index": 1,
+        "kind": "outcome"
+      },
+      {
+        "id": "R4",
+        "requirement": "learn from research",
+        "quote": "eawrn the ebst rpactics on this bth form resarch",
+        "asked_by_index": 1,
+        "kind": "outcome"
+      },
+      {
+        "id": "R5",
+        "requirement": "learn from first principles",
+        "quote": "first rprinciples",
+        "asked_by_index": 1,
+        "kind": "outcome"
+      },
+      {
+        "id": "R6",
+        "requirement": "set up feedback system",
+        "quote": "set upa feedback ssystme",
+        "asked_by_index": 1,
+        "kind": "outcome"
+      },
+      {
+        "id": "R7",
+        "requirement": "feedback improves rules over time",
+        "quote": "so ti improves over time",
+        "asked_by_index": 1,
+        "kind": "outcome"
+      }
+    ],
+    "mappings": [
+      {
+        "requirement_id": "R1",
+        "covered_by": [
+          "A3",
+          "A9"
+        ],
+        "coverage_reason": "A3 checks that the main model default persists into new sessions (settings-level config), and A9 checks that subagent tier routing actually works in a freshly started session — together they would fail if the updates were not applied durably across sessions.",
+        "extent": "full",
+        "missing": "",
+        "deferral": 0,
+        "in_outcome": true,
+        "outcome_reason": "The OUTCOME says 'applies across sessions', keeping this requirement in substance."
+      },
+      {
+        "requirement_id": "R2",
+        "covered_by": [
+          "A1",
+          "A9"
+        ],
+        "coverage_reason": "A1 fails if Haiku is not named for the easy tier in the routing table, and A9 fails if a mechanical subagent in a live session does not actually run on Haiku.",
+        "extent": "full",
+        "missing": "",
+        "deferral": 0,
+        "in_outcome": true,
+        "outcome_reason": "The OUTCOME says 'sends some work to Haiku', keeping this requirement in substance."
+      },
+      {
+        "requirement_id": "R3",
+        "covered_by": [
+          "A2",
+          "A9"
+        ],
+        "coverage_reason": "A2 fails if the Effort column does not show a named level per tier with a stated reason, and A9 fails if the search agent's live row does not show effort ≤ low.",
+        "extent": "full",
+        "missing": "",
+        "deferral": 0,
+        "in_outcome": true,
+        "outcome_reason": "The OUTCOME says 'sets the reasoning level by tier', keeping this requirement in substance."
+      },
+      {
+        "requirement_id": "R4",
+        "covered_by": [
+          "A4"
+        ],
+        "coverage_reason": "A4 fails if the research report does not exist, does not state evidence per claim, or if the README rules do not carry Source lines naming the research.",
+        "extent": "full",
+        "missing": "",
+        "deferral": 0,
+        "in_outcome": true,
+        "outcome_reason": "The OUTCOME says 'rests on research', keeping this requirement in substance."
+      },
+      {
+        "requirement_id": "R5",
+        "covered_by": [
+          "A4"
+        ],
+        "coverage_reason": "A4 specifically requires a first-principles section (section 4, cost formula) in the report and would fail if no such section exists.",
+        "extent": "full",
+        "missing": "",
+        "deferral": 0,
+        "in_outcome": true,
+        "outcome_reason": "The OUTCOME says 'rests on...first principles', keeping this requirement in substance."
+      },
+      {
+        "requirement_id": "R6",
+        "covered_by": [
+          "A5",
+          "A8"
+        ],
+        "coverage_reason": "A5 fails if no weekly review page with a proposed-decision table exists, and A8 fails if no mechanism exists to record an acceptance and apply it — together they confirm a feedback system is in place.",
+        "extent": "full",
+        "missing": "",
+        "deferral": 0,
+        "in_outcome": true,
+        "outcome_reason": "The OUTCOME says 'has a feedback system', keeping this requirement in substance."
+      },
+      {
+        "requirement_id": "R7",
+        "covered_by": [
+          "A5",
+          "A8"
+        ],
+        "coverage_reason": "A5 checks that proposed decisions are based on real run evidence, and A8 checks that an accepted decision actually changes a rule value in a named commit — the system would fail both if the rules did not improve from feedback.",
+        "extent": "full",
+        "missing": "",
+        "deferral": 0,
+        "in_outcome": true,
+        "outcome_reason": "The OUTCOME says 'that improves the rules over time', keeping this requirement in substance."
+      }
+    ]
+  },
+  "observability": "llm_client observability db (~/projects/data/llm_observability.db), by trace_id"
+}
