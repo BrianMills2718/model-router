@@ -94,28 +94,28 @@
    "explain": "A proposed change to a tier rule with its evidence, the traces to read and a status; a session accepts or rejects it and records which. Source: docs/planning/evidence/router-weekly-review-sample.md:34. Code: /home/brian/code2/workspace/scripts/router_review.py:63."
   },
   {
-   "id": "Q3",
-   "label": "Q3: Research claims not yet re-checked",
-   "kind": "AgentQuestion",
-   "explain": "The research report marks its Haiku figures (32% cost saved for about 4 points of pass rate; low effort skips checks in long prompts) as read from Anthropic pages but says load-bearing claims need a re-check; do the pages still say that? Settled by: Prior art settles it: re-read the two cited pages (optimizing-for-cost-and-intelligence, effort) and compare the numbers. No test needed."
+   "id": "Q5",
+   "label": "Q5: Who applies a tier decision?",
+   "kind": "BrianQuestion",
+   "explain": "When a session accepts a weekly decision (for example lower general-purpose from hard to standard), does it edit the tier rules directly and ship, or does a pull request wait for Brian? Recommendation: An agent session accepts or rejects each decision after reading the traces, ships the rule change through ship, and records the decision; Brian reads the weekly page only if he wants to. Default: Recommendation applies: the session that reads the weekly review decides and ships; nothing waits for Brian."
   },
   {
-   "id": "Q3-blocks",
-   "label": "the effort cap values for Haiku (low, medium over 200,000 characters)",
+   "id": "Q5-blocks",
+   "label": "whether accepted decisions change the rules without further review",
    "kind": "Decision",
-   "explain": "the effort cap values for Haiku (low, medium over 200,000 characters)"
+   "explain": "whether accepted decisions change the rules without further review"
   },
   {
-   "id": "Q4",
-   "label": "Q4: Can a plugin set the main model?",
+   "id": "Q9",
+   "label": "Q9: Does the Sonnet default apply everywhere?",
    "kind": "AgentQuestion",
-   "explain": "Can any plugin mechanism set the main conversation's model or effort? The report read only the first 100k of 288k characters of the hooks reference and says to grep the tail for setModel and CLAUDE_ENV_FILE before relying on 'impossible'. Settled by: Prior art: grep the unread tail of the hooks and model-config pages for setModel, model in hook output and CLAUDE_ENV_FILE."
+   "explain": "Does the ~/.claude/settings.json model: sonnet default actually apply across sessions and machines? Settled by: Observation: read the settings file on this machine (done: line 12 reads \"model\": \"sonnet\") and start a new session and check /model. Other machines are unknown until checked on each."
   },
   {
-   "id": "Q4-blocks",
-   "label": "whether README 'Limits' may state that the main-model lever is manual",
+   "id": "Q9-blocks",
+   "label": "acceptance criterion A3 (a new session starts on Sonnet)",
    "kind": "Decision",
-   "explain": "whether README 'Limits' may state that the main-model lever is manual"
+   "explain": "acceptance criterion A3 (a new session starts on Sonnet)"
   },
   {
    "id": "main-model-lever",
@@ -132,28 +132,16 @@
    "explain": "The session Brian types into. A plugin cannot change its model or effort (open question Q4 checks the unread part of the docs). Source: docs/planning/research-routing-best-practices.md:55. Not implemented here."
   },
   {
-   "id": "Q5",
-   "label": "Q5: Who applies a tier decision?",
-   "kind": "BrianQuestion",
-   "explain": "When a session accepts a weekly decision (for example lower general-purpose from hard to standard), does it edit the tier rules directly and ship, or does a pull request wait for Brian? Recommendation: An agent session accepts or rejects each decision after reading the traces, ships the rule change through ship, and records the decision; Brian reads the weekly page only if he wants to. Default: Recommendation applies: the session that reads the weekly review decides and ships; nothing waits for Brian."
-  },
-  {
-   "id": "Q5-blocks",
-   "label": "whether accepted decisions change the rules without further review",
-   "kind": "Decision",
-   "explain": "whether accepted decisions change the rules without further review"
-  },
-  {
-   "id": "Q8",
-   "label": "Q8: Fork has no LICENSE",
+   "id": "Q11",
+   "label": "Q11: Is the classifier's cost measured?",
    "kind": "AgentQuestion",
-   "explain": "The plugin directory check refuses a submission without a LICENSE; the fork and its upstream (aott33/model-router) have none. Does that matter? Settled by: Argument settles it: the fork is installed from a marketplace entry, not submitted to the directory, and a license is the upstream author's choice, not ours. No test needed. Revisit only if Brian wants the fork listed."
+   "explain": "Is the classifier's cost ever measured? Settled by: Log query: the logs do not record classifications, so no per-call figure exists. The only measured number is the claude-haiku-5-5 row in the 2026-11-05 report ($0.03 main, $0.34 subagents, $0.37 in total), which mixes classifier and other Haiku use. The fix is to log each classification, then compute cost per call."
   },
   {
-   "id": "Q8-blocks",
-   "label": "any submission of this fork to the plugin directory",
+   "id": "Q11-blocks",
+   "label": "the cost_basis label for the classifier step (now a worked-out estimate)",
    "kind": "Decision",
-   "explain": "any submission of this fork to the plugin directory"
+   "explain": "the cost_basis label for the classifier step (now a worked-out estimate)"
   }
  ],
  "edges": [
@@ -206,42 +194,6 @@
    "label": "bears on"
   },
   {
-   "id": "Q3-to-decision",
-   "source": "Q3",
-   "target": "Q3-blocks",
-   "label": "blocks"
-  },
-  {
-   "id": "Q3-effort-cap",
-   "source": "Q3",
-   "target": "effort-cap",
-   "label": "bears on"
-  },
-  {
-   "id": "Q3-tier",
-   "source": "Q3",
-   "target": "tier",
-   "label": "bears on"
-  },
-  {
-   "id": "Q4-to-decision",
-   "source": "Q4",
-   "target": "Q4-blocks",
-   "label": "blocks"
-  },
-  {
-   "id": "Q4-main-model-lever",
-   "source": "Q4",
-   "target": "main-model-lever",
-   "label": "bears on"
-  },
-  {
-   "id": "Q4-main-conversation",
-   "source": "Q4",
-   "target": "main-conversation",
-   "label": "bears on"
-  },
-  {
    "id": "Q5-to-decision",
    "source": "Q5",
    "target": "Q5-blocks",
@@ -260,15 +212,33 @@
    "label": "bears on"
   },
   {
-   "id": "Q8-to-decision",
-   "source": "Q8",
-   "target": "Q8-blocks",
+   "id": "Q9-to-decision",
+   "source": "Q9",
+   "target": "Q9-blocks",
    "label": "blocks"
   },
   {
-   "id": "Q8-tier",
-   "source": "Q8",
-   "target": "tier",
+   "id": "Q9-main-model-lever",
+   "source": "Q9",
+   "target": "main-model-lever",
+   "label": "bears on"
+  },
+  {
+   "id": "Q9-main-conversation",
+   "source": "Q9",
+   "target": "main-conversation",
+   "label": "bears on"
+  },
+  {
+   "id": "Q11-to-decision",
+   "source": "Q11",
+   "target": "Q11-blocks",
+   "label": "blocks"
+  },
+  {
+   "id": "Q11-classifier-verdict",
+   "source": "Q11",
+   "target": "classifier-verdict",
    "label": "bears on"
   }
  ]
