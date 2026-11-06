@@ -126,6 +126,22 @@
     "judging-agent",
     "pressure"
    ]
+  },
+  {
+   "id": "Q8",
+   "short": "Fork has no LICENSE",
+   "question": "The plugin directory check refuses a submission without a LICENSE; the fork and its upstream (aott33/model-router) have none. Does that matter?",
+   "blocks": "any submission of this fork to the plugin directory",
+   "resolves_with": "Argument settles it: the fork is installed from a marketplace entry, not submitted to the directory, and a license is the upstream author's choice, not ours. No test needed. Revisit only if Brian wants the fork listed.",
+   "owner": "agent",
+   "status": "open",
+   "sources": [
+    "docs/planning/checks.txt:27",
+    "README.md:7"
+   ],
+   "touches": [
+    "tier"
+   ]
   }
  ]
 }

@@ -41,7 +41,69 @@
   "checks": {
    "status": "present",
    "path": "docs/planning/checks.txt",
-   "results": []
+   "results": [
+    {
+     "name": "plugin validate",
+     "command": "claude plugin validate .",
+     "exit_status": 0,
+     "counts": {
+      "errors": 0,
+      "directory_refusals": 1,
+      "directory_warnings": 1
+     },
+     "tracked_by": "Q8",
+     "note": "passes; the directory profile (not run by ship) would refuse for a missing LICENSE"
+    },
+    {
+     "name": "plugin tests",
+     "command": "claude plugin test .",
+     "exit_status": 0,
+     "counts": {
+      "passed": 118,
+      "failed": 0
+     }
+    },
+    {
+     "name": "router report and weekly review tests (code2-workspace)",
+     "command": "cd ~/code2/workspace && python3 -m pytest tests/test_router_report.py tests/test_router_review.py -q",
+     "exit_status": 0,
+     "counts": {
+      "passed": 15,
+      "failed": 0
+     }
+    },
+    {
+     "name": "wiki rule (Markdown cap, reachability, layout, durable documents)",
+     "command": "python3 ~/code/project-meta/scripts/md_file_cap.py --repo . --ref HEAD",
+     "exit_status": 0,
+     "counts": {
+      "markdown_files": 11,
+      "cap": 100,
+      "over": 0,
+      "no_wiki": 0,
+      "layout_undeclared": 1,
+      "durable_undeclared": 1
+     }
+    },
+    {
+     "name": "semantic spectrum (project and planning layers)",
+     "command": "python3 $CP/spectrum_check.py --repo . docs/planning/planning-package.json",
+     "exit_status": 0,
+     "counts": {
+      "passed": 9,
+      "failed": 0
+     }
+    },
+    {
+     "name": "typed-graph/v1 schema (domain graph and open-questions map)",
+     "command": "jsonschema Draft202012Validator over both graphs (code in docs/planning/run_checks.sh)",
+     "exit_status": 0,
+     "counts": {
+      "graphs_valid": 2,
+      "graphs_invalid": 0
+     }
+    }
+   ]
   },
   "open_questions": {
    "status": "present",

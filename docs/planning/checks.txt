@@ -1,0 +1,282 @@
+## plugin validate
+$ claude plugin validate .
+Validating marketplace manifest: /home/brian/code2/model-router_worktrees/tiers/.claude-plugin/marketplace.json
+
+Validating plugin: /home/brian/code2/model-router_worktrees/tiers/.claude-plugin/plugin.json
+
+  ❯ types ./types/index.d.ts declares on $: nothing (no EngineInterface member)
+  ❯ types ./types/index.d.ts declares state: model-router.ledger, model-router.mode, model-router.meter, model-router.view
+
+Validating hooks: /home/brian/code2/model-router_worktrees/tiers/hooks/hooks.json
+
+  ❯ ./register.tsx hooks: session.start, command.run{command=router}, tool.call{tool=Agent}, tool.call, agent.spawn, turn.step, turn.start, turn.complete, session.measure, classic.SubagentStop, session.end, ui.render{component=AbovePrompt}, ui.render{component=Pane, requestId=model-router}
+  ❯ ./register.tsx answers its own command: command.run{command=router}
+  ❯ ./register.tsx gating hook with .catch: tool.call{tool=Agent}
+  ❯ ./register.tsx gating hook with .catch: tool.call
+  ❯ ./register.tsx gating hook with .catch: agent.spawn
+  ❯ ./register.tsx gating hook with .catch: classic.SubagentStop
+  ❯ ./register.tsx calls: $.agent.list (via reconcileAgents), $.agent.register, $.clock.after (via finishAgent), $.clock.now, $.clock.sleep (via timeout), $.command.register, $.model.classify, $.model.complete, $.session.usage, $.state.get, $.state.set, $.store.get (via loadClassCache, storedMode, storedTypeModels), $.store.set, $.ui.invalidate (via finishAgent), $.ui.log, $.ui.open, $.ui.resolve, $.ui.status, $.ui.toast
+  ❯ ./register.tsx state writes: model-router.ledger, model-router.meter, model-router.mode, model-router.view
+  ❯ ./register.tsx state reads: model-router.ledger, model-router.meter, model-router.mode, model-router.view
+  ❯ ./register.tsx surface modules: hooks/clock.tsx
+
+Plugin directory checks for /home/brian/code2/model-router_worktrees/tiers. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.
+
+✘ Found 1 problem the plugin directory refuses a submission for:
+
+  ❯ LICENSE: License missing (LICENSE_MISSING). This plugin has no LICENSE file and plugin.json has no `license`. The directory requires one of them.
+    Fix: Add a LICENSE file to the plugin folder, or set `license` (an SPDX id) in plugin.json. A LICENSE at the repository root also counts for a plugin in a sub-folder.
+
+⚠ Found 1 plugin directory warning:
+
+  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.
+
+About these checks:
+
+  ❯ This folder also holds a marketplace manifest. The plugin directory treats such a folder as a plugin, so these checks cover only the plugin in this folder. To check another plugin that the marketplace lists, run validate on that plugin's folder.
+  ❯ hooks/hooks.json names a hooks module (a code file listed under `modules`). The plugin directory has rules of its own for such code, and these checks apply none of them, so passing here does not mean the directory accepts the plugin. The developer portal's own validation applies those rules.
+
+These plugin directory checks do not change the result below. To fail on problems the directory refuses a submission for, run this command with --profile directory.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+No digest: it names surface modules
+
+✔ Validation passed
+exit status: 0
+
+## plugin tests (make check runs validate then these)
+$ claude plugin test .
+
+hooks/router.test.ts:
+(pass) pure routing rules > pricing families [6.94ms]
+(pass) pure routing rules > Haiku 5.5 costs five times as much above a 100K-token prompt [0.93ms]
+(pass) pure routing rules > Sonnet 5.5 cache reads are $0.10 per million [0.52ms]
+(pass) pure routing rules > tiers and caps [2.47ms]
+(pass) pure routing rules > effort caps by tier; Haiku gets medium on a long prompt [1.69ms]
+(pass) pure routing rules > judging agents never go to Haiku [2.06ms]
+(pass) pure routing rules > long only when the task asks for a long or unattended run [1.93ms]
+(pass) pure routing rules > effort is only ever lowered [2.13ms]
+(pass) agent.spawn > Haiku says simple, the builder runs on Haiku 5.5 [602.96ms]
+(pass) agent.spawn > the runner is capped at Sonnet even when Haiku says long [380.87ms]
+(pass) agent.spawn > long goes to Opus for a task that does not ask for a long run [379.64ms]
+(pass) agent.spawn > running in the background is not a long run [327.09ms]
+(pass) agent.spawn > a task that asks for an unattended run goes to Fable [332.56ms]
+(pass) agent.spawn > a failed classifier falls back to the role default [327.28ms]
+(pass) agent.spawn > a model the caller named is kept [203.53ms]
+(pass) agent.spawn > forks are left alone [216.23ms]
+(pass) agent.spawn > teammates are left alone and not classified [277.03ms]
+(pass) risk floor and rate limits: pure rules > routeTier [1.14ms]
+(pass) risk floor and rate limits: pure rules > the act is risky, not the subject [0.89ms]
+(pass) risk floor and rate limits: pure rules > a cached verdict is keyed on the rubric that gave it [1.16ms]
+(pass) risk floor and rate limits > a risky simple task runs on Opus [268.45ms]
+(pass) risk floor and rate limits > without a classifier, a destructive act still gets the floor [456.56ms]
+(pass) risk floor and rate limits > the risk floor can be turned off [244.07ms]
+(pass) risk floor and rate limits > past 80% of a rate-limit window, a hard task runs on Sonnet [273.14ms]
+(pass) risk floor and rate limits > an unattended run goes to Opus, not Fable, under rate-limit pressure [230.90ms]
+(pass) risk floor and rate limits > below the threshold, nothing changes [185.77ms]
+(pass) risk floor and rate limits > with the setting off, rate limits are ignored [232.08ms]
+(pass) risk floor and rate limits > a risky task keeps Opus under rate-limit pressure [151.97ms]
+(pass) effort > a simple task asks for low effort [261.91ms]
+(pass) effort > the first request gets low effort even when it arrives before the spawn answers [236.32ms]
+(pass) effort > a hard task keeps its effort up to high and no further [281.52ms]
+(pass) effort > a model without effort is not given one [289.64ms]
+(pass) effort > an Agent call that sets its own effort keeps it [250.50ms]
+(pass) /router modes > off leaves spawns alone and asks no classifier [187.84ms]
+(pass) /router modes > sonnet sends every routed spawn to Sonnet 5.5 without classifying [211.72ms]
+(pass) /router modes > a mode saved in an earlier session is used [314.15ms]
+(pass) classifier fallback > when Haiku 4.5 fails, the built-in classifier picks the tier [229.91ms]
+(pass) bill > a routed step is priced on Haiku 5.5 and against the builder on Sonnet [350.00ms]
+(pass) bill > with no subagents the pane says how to get one [202.33ms]
+(pass) bill > the header follows /router on the same mounted pane [325.16ms]
+(pass) bill > the pane draws the stored mode when the state is empty, without writing state [290.80ms]
+(pass) bill > a narrow pane keeps the money columns whole and truncates the agent name [307.06ms]
+(pass) bill > a risky row shows hard! and the legend explains it [269.32ms]
+(pass) baseline for built-in agents > a routed Explore is compared with the model Explore was seen running on [433.06ms]
+(pass) baseline for built-in agents > the model an unrouted Explore ran on becomes its baseline [381.31ms]
+(pass) baseline for built-in agents > an Explore with no learned model shows a guessed Unrouted cost [191.33ms]
+(pass) baseline for built-in agents > an Explore with a learned model is not marked as a guess [242.49ms]
+(pass) baseline for router roles > a routed role is compared with Sonnet, its registered model, not the parent Opus [236.52ms]
+(pass) band above the prompt > a routed subagent has a line until 30 seconds after it finishes [233.29ms]
+(pass) band above the prompt > SubagentStop finishes the line too [249.90ms]
+(pass) band above the prompt > an unrouted subagent has no line [171.09ms]
+(pass) /clear > a row wiped while its agent runs is written again from the spawn [457.64ms]
+(pass) status line > updates when a subagent finishes and resets on /clear [257.39ms]
+(pass) status line > says how much more when routing cost more than the baseline [208.39ms]
+(pass) status line > with only the main conversation billed, says no agents are routed instead of 0% saved [183.14ms]
+(pass) 0.6.0 rules > the main conversation pays for hour-long cache writes, subagents for five minutes [1.59ms]
+(pass) 0.6.0 rules > rate-limit pressure keeps builders and fixers on Sonnet or above [13.82ms]
+(pass) 0.6.0 rules > each agent says why it got its tier [1.07ms]
+(pass) 0.6.0 rules > rate-limit gauges [5.30ms]
+(pass) 0.6.0 pane > pressing an agent's number shows why it got its model [615.94ms]
+(pass) 0.6.0 pane > a running agent shows ◐, a finished one ✓ [260.64ms]
+(pass) 0.6.0 pane > the last turn's receipt: time, agents, cost and what routing saved [266.77ms]
+(pass) 0.6.0 pane > a turn with no agents leaves the agent count out of the receipt [182.37ms]
+(pass) 0.6.0 pane > an agent the engine no longer runs is finished at the end of the main turn [263.40ms]
+(pass) 0.6.0 pane > with no agents yet, the pane still shows the rate-limit gauges and Claude Code's total [209.90ms]
+(pass) 0.6.0 pane > on a subscription Claude Code reports no cost, so there is nothing to compare [276.21ms]
+(pass) 0.6.0 pane > the main conversation's cache writes are billed at the hour rate [146.72ms]
+(pass) 0.6.0 pane > the pane fits 40 columns on terminal [188.86ms]
+(pass) 0.6.0 pane > the pane fits 60 columns on terminal [177.17ms]
+(pass) 0.6.0 pane > the pane fits 90 columns on terminal [203.88ms]
+(pass) 0.6.0 pane > the pane fits 120 columns on terminal [169.09ms]
+(pass) 0.6.0 pane > the pane fits 40 columns on desktop [248.55ms]
+(pass) 0.6.0 pane > the pane fits 60 columns on desktop [173.97ms]
+(pass) 0.6.0 pane > the pane fits 90 columns on desktop [302.72ms]
+(pass) 0.6.0 pane > the pane fits 120 columns on desktop [264.81ms]
+(pass) 0.7.0 rescue > when an agent counts as struggling [13.03ms]
+(pass) 0.7.0 rescue > where a struggling agent moves to [1.08ms]
+(pass) 0.7.0 rescue > three failed tool calls in a row move a Haiku agent up to Sonnet [282.22ms]
+(pass) 0.7.0 rescue > a success in between starts the count again [199.80ms]
+(pass) 0.7.0 rescue > a runner reporting failing commands is not struggling [206.74ms]
+(pass) 0.7.0 rescue > a model Claude named is never moved [203.69ms]
+(pass) 0.7.0 rescue > the rescue can be turned off [363.36ms]
+(pass) 0.7.0 rescue > an agent running far past its tier's time moves up [300.78ms]
+(pass) 0.7.0 classifier cache > the same task twice asks the classifier once [248.03ms]
+(pass) 0.7.0 classifier cache > a different task is classified afresh [276.72ms]
+(pass) 0.7.0 classifier cache > a verdict from an earlier session is reused [171.79ms]
+(pass) 0.7.0 classifier cache > a verdict the old rubric gave is not reused [174.95ms]
+(pass) 0.7.0 budget > budget setting [1.63ms]
+(pass) 0.7.0 budget > at 80% of the budget, routing goes one tier cheaper [287.96ms]
+(pass) 0.7.0 budget > with the budget spent, the cheapest model the role allows; risky tasks keep Opus [208.28ms]
+(pass) 0.7.0 budget > a toast when the bill crosses 80% and 100%, once each [193.55ms]
+(pass) 0.7.0 budget > without a budget nothing changes [420.38ms]
+(pass) 0.8.0 pane at start > the pane opens when a session starts [158.72ms]
+(pass) 0.8.0 pane at start > with the setting off, only /router opens it [146.99ms]
+(pass) 0.8.1 fixes > Haiku 5.5 is priced per request: summed tokens are split at the long-prompt threshold [0.86ms]
+(pass) 0.8.1 fixes > a routed agent compared with a learned Haiku 5.5 baseline is priced per request [269.05ms]
+(pass) 0.8.1 fixes > the main conversation that switches model is compared with what it ran on [194.88ms]
+(pass) 0.8.1 fixes > a subagent's own turn does not restart the main turn's receipt [198.47ms]
+(pass) 0.8.1 fixes > an agent woken after finishing is not moved up for the time it sat idle [200.42ms]
+(pass) 0.8.1 fixes > a classifier reply cut off before its verdict carries no risk flag [1.08ms]
+(pass) 0.8.1 fixes > a verdict the old reading cached is not reused [165.71ms]
+(pass) 0.8.1 fixes > a row with requests on both sides of the threshold prices each side at its own rate [266.36ms]
+(pass) 0.8.1 fixes > a cut-off classifier reply falls through to the built-in classifier without the risk floor [257.05ms]
+(pass) pace: pure rules > on pace changes nothing [0.96ms]
+(pass) pace: pure rules > 1.25x is one tier, 2x is two [0.42ms]
+(pass) pace: pure rules > the early-window floor keeps the first minutes from exploding [0.33ms]
+(pass) pace: pure rules > a window without resetsAt, an unknown kind or a past reset is ignored [0.50ms]
+(pass) pace: pure rules > the worst window wins, and the text carries the numbers [0.41ms]
+(pass) pace: pure rules > routeTier drops by steps with the same floors [0.55ms]
+(pass) pace: routing > pace off changes nothing [109.86ms]
+(pass) pace: routing > on pace changes nothing [208.43ms]
+(pass) pace: routing > 1.25x lowers one tier [139.52ms]
+(pass) pace: routing > 2x lowers two tiers [165.16ms]
+(pass) pace: routing > a builder stays on Sonnet at 2x [143.48ms]
+(pass) pace: routing > a risky task keeps Opus at 2x [161.17ms]
+(pass) pace: routing > a window without resetsAt is ignored [118.57ms]
+(pass) pace: routing > early in a window the floor holds it back [141.72ms]
+(pass) pace: routing > the stronger of pace and limitPressure wins [145.76ms]
+
+ 118 pass
+ 0 fail
+Ran 118 tests across 1 file. [24.07s]
+exit status: 0
+
+## router report and weekly review tests (code2-workspace)
+$ cd /home/brian/code2/workspace && python3 -m pytest tests/test_router_report.py tests/test_router_review.py -q
+...............                                                          [100%]
+=============================== warnings summary ===============================
+tests/test_router_report.py:52
+  /home/brian/code2/workspace/tests/test_router_report.py:52: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/cost-and-the-opus-equivalent")
+
+tests/test_router_report.py:61
+  /home/brian/code2/workspace/tests/test_router_report.py:61: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/cost-and-the-opus-equivalent")
+
+tests/test_router_report.py:70
+  /home/brian/code2/workspace/tests/test_router_report.py:70: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/cost-and-the-opus-equivalent")
+
+tests/test_router_report.py:78
+  /home/brian/code2/workspace/tests/test_router_report.py:78: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/routed-named-and-default")
+
+tests/test_router_report.py:90
+  /home/brian/code2/workspace/tests/test_router_report.py:90: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/a-run-moved-up-mid-run")
+
+tests/test_router_report.py:101
+  /home/brian/code2/workspace/tests/test_router_report.py:101: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/a-redo-on-a-stronger-model")
+
+tests/test_router_report.py:117
+  /home/brian/code2/workspace/tests/test_router_report.py:117: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/a-planned-round-is-not-a-redo")
+
+tests/test_router_report.py:134
+  /home/brian/code2/workspace/tests/test_router_report.py:134: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/main-conversation-line")
+
+tests/test_router_report.py:148
+  /home/brian/code2/workspace/tests/test_router_report.py:148: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/outcome-per-run")
+
+tests/test_router_report.py:173
+  /home/brian/code2/workspace/tests/test_router_report.py:173: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/a-redo-on-a-stronger-model")
+
+tests/test_router_report.py:183
+  /home/brian/code2/workspace/tests/test_router_report.py:183: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/cost-and-the-opus-equivalent")
+
+tests/test_router_report.py:193
+  /home/brian/code2/workspace/tests/test_router_report.py:193: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/rerun-replaces-the-day-s-file")
+
+tests/test_router_report.py:205
+  /home/brian/code2/workspace/tests/test_router_report.py:205: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/rerun-replaces-the-day-s-file")
+
+tests/test_router_review.py:27
+  /home/brian/code2/workspace/tests/test_router_review.py:27: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/weekly-review")
+
+tests/test_router_review.py:40
+  /home/brian/code2/workspace/tests/test_router_review.py:40: PytestUnknownMarkWarning: Unknown pytest.mark.req - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.req("router-report/weekly-review")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+15 passed, 15 warnings in 0.14s
+exit status: 0
+
+## wiki rule
+$ python3 /home/brian/code/project-meta/scripts/md_file_cap.py --repo . --ref HEAD
+REPO  BrianMills2718/model-router  md=11  cap=ok  reach=ok(0)  layout=undeclared(0)  durable=undeclared(0)
+md-file-cap: 1 given repos checked, cap 100: ok=1 exception=0 over=0 not-checked=0; wiki reachability ok=1 orphans=0 no-wiki=0; layout ok=0 findings=0 undeclared=1; durable ok=0 findings=0 undeclared=1   exit 0
+exit status: 0
+
+## semantic spectrum (project and planning layers)
+$ python3 /home/brian/code2/company-planning/plugins/company-planning/skills/planning-compliance/scripts/spectrum_check.py --repo . docs/planning/planning-package.json
+ok   L1 project S1   Every project term has a definition in the domain graph (17 checked)
+ok   L1 project S1b  Every node in the domain graph is a term in the project or planning layer (17 checked)
+ok   L3 project S3   Every term names a kind that exists (17 checked)
+ok   L4 project S4   Every project term connects to at least one other term (17 checked)
+ok   L2 both    P2   No other name points to two different terms (13 checked)
+ok   L2 both    P2c  No two terms have near-identical names unless an ambiguous entry separates them (43 checked)
+ok   L2 both    P2b  Each ambiguous word lists only terms that exist (2 checked)
+ok   L3 both    P3   A project file does not redefine a planning term or give one another kind (17 checked)
+ok   L5 project S5   Every open question touches only concepts that are terms (8 checked)
+spectrum_check: 9 passed, 0 failed of 9 (13 planning terms, 17 project terms); exit 0
+exit status: 0
+
+## typed-graph schema over the three graphs
+$ python3 - <<'PY'
+import json,sys
+from pathlib import Path
+import jsonschema
+schema=json.loads((Path.home()/'code2/representation-router/schemas/typed-graph.schema.json').read_text())
+bad=0
+for p in ['domain.graph.json','open-questions.graph.json']:
+    g=json.loads(Path('docs/planning/'+p).read_text())
+    errs=list(jsonschema.Draft202012Validator(schema).iter_errors(g))
+    print(p,'errors',len(errs)); bad+=len(errs)
+print('graphs_invalid',bad); sys.exit(1 if bad else 0)
+PY
+domain.graph.json errors 0
+open-questions.graph.json errors 0
+graphs_invalid 0
+exit status: 0
+

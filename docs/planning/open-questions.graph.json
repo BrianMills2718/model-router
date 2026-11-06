@@ -142,6 +142,18 @@
    "label": "whether accepted decisions change the rules without further review",
    "kind": "Decision",
    "explain": "whether accepted decisions change the rules without further review"
+  },
+  {
+   "id": "Q8",
+   "label": "Q8: Fork has no LICENSE",
+   "kind": "AgentQuestion",
+   "explain": "The plugin directory check refuses a submission without a LICENSE; the fork and its upstream (aott33/model-router) have none. Does that matter? Settled by: Argument settles it: the fork is installed from a marketplace entry, not submitted to the directory, and a license is the upstream author's choice, not ours. No test needed. Revisit only if Brian wants the fork listed."
+  },
+  {
+   "id": "Q8-blocks",
+   "label": "any submission of this fork to the plugin directory",
+   "kind": "Decision",
+   "explain": "any submission of this fork to the plugin directory"
   }
  ],
  "edges": [
@@ -245,6 +257,18 @@
    "id": "Q5-weekly-review",
    "source": "Q5",
    "target": "weekly-review",
+   "label": "bears on"
+  },
+  {
+   "id": "Q8-to-decision",
+   "source": "Q8",
+   "target": "Q8-blocks",
+   "label": "blocks"
+  },
+  {
+   "id": "Q8-tier",
+   "source": "Q8",
+   "target": "tier",
    "label": "bears on"
   }
  ]
