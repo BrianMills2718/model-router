@@ -25,7 +25,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A1.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/README.md#how-it-routes",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/README.md#how-it-routes",
    "status": "built"
   },
   {
@@ -42,7 +42,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A2.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/README.md#how-it-routes",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/README.md#how-it-routes",
    "status": "built"
   },
   {
@@ -59,7 +59,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A3.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/README.md#limits",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/README.md#limits",
    "status": "built"
   },
   {
@@ -77,7 +77,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A4.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/docs/planning/research-routing-best-practices.md",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/research-routing-best-practices.md",
    "status": "built"
   },
   {
@@ -95,7 +95,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A5.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/docs/planning/evidence/router-weekly-review-sample.md",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/evidence/router-weekly-review-sample.md",
    "status": "built"
   },
   {
@@ -112,7 +112,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A6.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/docs/planning/evidence/router-report-2026-11-05.md",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/evidence/router-report-2026-11-05.md",
    "status": "built"
   },
   {
@@ -129,7 +129,7 @@
     "view": "argument-page",
     "router_record": "docs/planning/router/A7.recommendation.json"
    },
-   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/docs/planning/evidence/router-report-2026-11-05.md",
+   "entrypoint": "https://github.com/BrianMills2718/model-router/blob/main/docs/planning/evidence/router-report-2026-11-05.md",
    "status": "built"
   },
   {
