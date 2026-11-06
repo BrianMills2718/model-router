@@ -206,7 +206,7 @@
     "review_page": {
       "status": "present",
       "path": "proposals/planning-package/review-page/index.html",
-      "url": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/proposals/planning-package/review-page/index.html"
+      "url": "https://github.com/BrianMills2718/model-router/blob/main/proposals/planning-package/review-page/index.html"
     },
     "cold_review": {
       "status": "present",
