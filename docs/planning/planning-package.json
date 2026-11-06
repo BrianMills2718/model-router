@@ -1,218 +1,218 @@
 {
- "schema_version": "1.0",
- "record_type": "planning_package",
- "repository": "BrianMills2718/model-router",
- "subject_revision": "f2bf05b4ee5d2770c0270d676bc1ea1082ab6aa1",
- "request": "Brian 2026-11-06 on code2-workspace #162 \"why dont we just update that now across sessions and haiku in some places also and the reaosnign level and we should eawrn the ebst rpactics on this bth form resarch and first rprinciples and set upa feedback ssystme so ti improves over time\"; item 6 of that issue asks for this planning package, which unblocks PR #1 (pace mode).",
- "full_method": false,
- "route": "durable_solo",
- "route_decision": "docs/planning/next-plan.path-decision.json",
- "initiative": {
-  "id": "model-routing",
-  "role": "home"
- },
- "runs_in_production": false,
- "spectrum_rungs": {
-  "name": "README.md:3",
-  "controlled_vocabulary": "docs/planning/semantic-spectrum.json",
-  "glossary": "docs/planning/DOMAIN.md",
-  "thesaurus": "docs/planning/semantic-spectrum.json",
-  "informal_taxonomy": "docs/planning/semantic-spectrum.json",
-  "formal_taxonomy": "docs/planning/domain.graph.json",
-  "domain_model": "docs/planning/domain.graph.json",
-  "schema": "hooks/lib/pricing.ts:46",
-  "rules": "hooks/lib/pricing.ts:180",
-  "instances": "docs/planning/evidence/router-report-2026-11-05.md",
-  "architecture_views": "docs/planning/SYSTEM.md"
- },
- "parts": {
-  "investigation": {
-   "status": "present",
-   "path": "docs/planning/investigation.json",
-   "paths": [
-    "docs/planning/research-routing-best-practices.md",
-    "docs/planning/evidence/router-report-2026-11-05.md",
-    "docs/planning/evidence/router-weekly-review-sample.md",
-    "wiki/index.md",
-    "docs/planning/build_open_questions_graph.py",
-    "docs/planning/run_checks.sh"
-   ]
+  "schema_version": "1.0",
+  "record_type": "planning_package",
+  "repository": "BrianMills2718/model-router",
+  "subject_revision": "f2bf05b4ee5d2770c0270d676bc1ea1082ab6aa1",
+  "request": "Brian 2026-11-06 on code2-workspace #162 \"why dont we just update that now across sessions and haiku in some places also and the reaosnign level and we should eawrn the ebst rpactics on this bth form resarch and first rprinciples and set upa feedback ssystme so ti improves over time\"; item 6 of that issue asks for this planning package, which unblocks PR #1 (pace mode).",
+  "full_method": false,
+  "route": "durable_solo",
+  "route_decision": "docs/planning/next-plan.path-decision.json",
+  "initiative": {
+    "id": "model-routing",
+    "role": "home"
   },
-  "checks": {
-   "status": "present",
-   "path": "docs/planning/checks.txt",
-   "results": [
-    {
-     "name": "plugin validate",
-     "command": "claude plugin validate .",
-     "exit_status": 0,
-     "counts": {
-      "errors": 0,
-      "directory_refusals": 1,
-      "directory_warnings": 1
-     },
-     "tracked_by": "Q8",
-     "note": "passes; the directory profile (not run by ship) would refuse for a missing LICENSE"
-    },
-    {
-     "name": "plugin tests",
-     "command": "claude plugin test .",
-     "exit_status": 0,
-     "counts": {
-      "passed": 118,
-      "failed": 0
-     }
-    },
-    {
-     "name": "router report and weekly review tests (code2-workspace)",
-     "command": "cd ~/code2/workspace && python3 -m pytest tests/test_router_report.py tests/test_router_review.py -q",
-     "exit_status": 0,
-     "counts": {
-      "passed": 15,
-      "failed": 0
-     }
-    },
-    {
-     "name": "wiki rule (Markdown cap, reachability, layout, durable documents)",
-     "command": "python3 ~/code/project-meta/scripts/md_file_cap.py --repo . --ref HEAD",
-     "exit_status": 0,
-     "counts": {
-      "markdown_files": 11,
-      "cap": 100,
-      "over": 0,
-      "no_wiki": 0,
-      "layout_undeclared": 1,
-      "durable_undeclared": 1
-     }
-    },
-    {
-     "name": "semantic spectrum (project and planning layers)",
-     "command": "python3 $CP/spectrum_check.py --repo . docs/planning/planning-package.json",
-     "exit_status": 0,
-     "counts": {
-      "passed": 9,
-      "failed": 0
-     }
-    },
-    {
-     "name": "typed-graph/v1 schema (domain graph and open-questions map)",
-     "command": "jsonschema Draft202012Validator over both graphs (code in docs/planning/run_checks.sh)",
-     "exit_status": 0,
-     "counts": {
-      "graphs_valid": 2,
-      "graphs_invalid": 0
-     }
-    }
-   ]
+  "runs_in_production": false,
+  "spectrum_rungs": {
+    "name": "README.md:3",
+    "controlled_vocabulary": "docs/planning/semantic-spectrum.json",
+    "glossary": "docs/planning/DOMAIN.md",
+    "thesaurus": "docs/planning/semantic-spectrum.json",
+    "informal_taxonomy": "docs/planning/semantic-spectrum.json",
+    "formal_taxonomy": "docs/planning/domain.graph.json",
+    "domain_model": "docs/planning/domain.graph.json",
+    "schema": "hooks/lib/pricing.ts:46",
+    "rules": "hooks/lib/pricing.ts:180",
+    "instances": "docs/planning/evidence/router-report-2026-11-05.md",
+    "architecture_views": "docs/planning/SYSTEM.md"
   },
-  "open_questions": {
-   "status": "present",
-   "path": "docs/planning/open-questions.json"
-  },
-  "system_model": {
-   "status": "present",
-   "path": "docs/planning/SYSTEM.md",
-   "executes_typed_rules": false,
-   "basis": "hooks/lib/pricing.ts:247"
-  },
-  "domain_model": {
-   "status": "present",
-   "path": "docs/planning/domain.graph.json",
-   "glossary": "docs/planning/DOMAIN.md",
-   "spectrum": "docs/planning/semantic-spectrum.json",
-   "implemented": {
-    "tier": "hooks/lib/pricing.ts:22",
-    "effort-cap": "hooks/lib/pricing.ts:53",
-    "role": "hooks/lib/pricing.ts:180",
-    "judging-agent": "hooks/lib/pricing.ts:196",
-    "risk-floor": "hooks/lib/pricing.ts:275",
-    "pressure": "hooks/lib/pricing.ts:245",
-    "classifier-verdict": "hooks/lib/pricing.ts:396",
-    "rescue": "hooks/register.tsx:264",
-    "daily-report": "/home/brian/code2/workspace/scripts/router_report.py:425",
-    "main-conversation-line": "/home/brian/code2/workspace/scripts/router_report.py:358",
-    "outcome-signal": "/home/brian/code2/workspace/scripts/router_report.py:309",
-    "redo": "/home/brian/code2/workspace/scripts/router_report.py:277",
-    "weekly-review": "/home/brian/code2/workspace/scripts/router_review.py:113",
-    "tier-decision": "/home/brian/code2/workspace/scripts/router_review.py:63"
-   }
-  },
-  "diagrams": {
-   "status": "present",
-   "items": [
-    {
-     "path": "docs/planning/SYSTEM.md",
-     "question": "What is inside the plugin, and what talks to it? (context view)"
+  "parts": {
+    "investigation": {
+      "status": "present",
+      "path": "docs/planning/investigation.json",
+      "paths": [
+        "docs/planning/research-routing-best-practices.md",
+        "docs/planning/evidence/router-report-2026-11-05.md",
+        "docs/planning/evidence/router-weekly-review-sample.md",
+        "wiki/index.md",
+        "docs/planning/build_open_questions_graph.py",
+        "docs/planning/run_checks.sh"
+      ]
     },
-    {
-     "path": "docs/planning/domain.graph.json",
-     "question": "How does a subagent task become a model and an effort cap, and how do its outcomes come back as proposed rule changes?"
+    "checks": {
+      "status": "present",
+      "path": "docs/planning/checks.txt",
+      "results": [
+        {
+          "name": "plugin validate",
+          "command": "claude plugin validate .",
+          "exit_status": 0,
+          "counts": {
+            "errors": 0,
+            "directory_refusals": 1,
+            "directory_warnings": 1
+          },
+          "tracked_by": "Q8",
+          "note": "passes; the directory profile (not run by ship) would refuse for a missing LICENSE"
+        },
+        {
+          "name": "plugin tests",
+          "command": "claude plugin test .",
+          "exit_status": 0,
+          "counts": {
+            "passed": 118,
+            "failed": 0
+          }
+        },
+        {
+          "name": "router report and weekly review tests (code2-workspace)",
+          "command": "cd ~/code2/workspace && python3 -m pytest tests/test_router_report.py tests/test_router_review.py -q",
+          "exit_status": 0,
+          "counts": {
+            "passed": 15,
+            "failed": 0
+          }
+        },
+        {
+          "name": "wiki rule (Markdown cap, reachability, layout, durable documents)",
+          "command": "python3 ~/code/project-meta/scripts/md_file_cap.py --repo . --ref HEAD",
+          "exit_status": 0,
+          "counts": {
+            "markdown_files": 11,
+            "cap": 100,
+            "over": 0,
+            "no_wiki": 0,
+            "layout_undeclared": 1,
+            "durable_undeclared": 1
+          }
+        },
+        {
+          "name": "semantic spectrum (project and planning layers)",
+          "command": "python3 $CP/spectrum_check.py --repo . docs/planning/planning-package.json",
+          "exit_status": 0,
+          "counts": {
+            "passed": 9,
+            "failed": 0
+          }
+        },
+        {
+          "name": "typed-graph/v1 schema (domain graph and open-questions map)",
+          "command": "jsonschema Draft202012Validator over both graphs (code in docs/planning/run_checks.sh)",
+          "exit_status": 0,
+          "counts": {
+            "graphs_valid": 2,
+            "graphs_invalid": 0
+          }
+        }
+      ]
     },
-    {
-     "path": "docs/planning/open-questions.graph.json",
-     "question": "Which questions about the Haiku rules, the signals and the main-model lever are still open, whose call is each, and which concepts does each touch?"
-    }
-   ]
-  },
-  "plan": {
-   "status": "present",
-   "path": "docs/planning/next-plan.md",
-   "relies_on": [
-    "tier",
-    "effort-cap",
-    "judging-agent",
-    "pressure",
-    "classifier-verdict",
-    "outcome-signal",
-    "weekly-review",
-    "tier-decision",
-    "main-conversation-line",
-    "redo"
-   ],
-   "cost_basis": {
-    "steps": [
-     {
-      "step": "classify a subagent task (Haiku 5.5, once per new task key; repeats hit the cache)",
-      "per": "new task key",
-      "cost_per_run_usd": 0.000234,
-      "calls_per_run": 1,
-      "basis": "computed",
-      "evidence": "worked-out estimate with a guessed 4 characters per token ratio, not measured: hooks/lib/pricing.ts:517 system prompt is 2,187 characters and classifierPrompt cuts the task at 6,000 characters (hooks/lib/pricing.ts:536), so at most about 2,100 input tokens at 4 characters per token (a guess for the ratio); maxTokens is 48 (hooks/register.tsx:727); Haiku 5.5 price is $0.10 in and $0.50 out per million (hooks/lib/pricing.ts:9); no cached share assumed",
-      "computation": {
-       "calls": 1,
-       "input_tokens_per_call": 2100,
-       "input_usd_per_mtok": 0.1,
-       "cached_share": 0,
-       "cached_usd_per_mtok": 0.01,
-       "output_tokens_per_call": 48,
-       "output_usd_per_mtok": 0.5
+    "open_questions": {
+      "status": "present",
+      "path": "docs/planning/open-questions.json"
+    },
+    "system_model": {
+      "status": "present",
+      "path": "docs/planning/SYSTEM.md",
+      "executes_typed_rules": false,
+      "basis": "hooks/lib/pricing.ts:247"
+    },
+    "domain_model": {
+      "status": "present",
+      "path": "docs/planning/domain.graph.json",
+      "glossary": "docs/planning/DOMAIN.md",
+      "spectrum": "docs/planning/semantic-spectrum.json",
+      "implemented": {
+        "tier": "hooks/lib/pricing.ts:22",
+        "effort-cap": "hooks/lib/pricing.ts:53",
+        "role": "hooks/lib/pricing.ts:180",
+        "judging-agent": "hooks/lib/pricing.ts:196",
+        "risk-floor": "hooks/lib/pricing.ts:275",
+        "pressure": "hooks/lib/pricing.ts:245",
+        "classifier-verdict": "hooks/lib/pricing.ts:396",
+        "rescue": "hooks/register.tsx:264",
+        "daily-report": "/home/brian/code2/workspace/scripts/router_report.py:425",
+        "main-conversation-line": "/home/brian/code2/workspace/scripts/router_report.py:358",
+        "outcome-signal": "/home/brian/code2/workspace/scripts/router_report.py:309",
+        "redo": "/home/brian/code2/workspace/scripts/router_report.py:277",
+        "weekly-review": "/home/brian/code2/workspace/scripts/router_review.py:113",
+        "tier-decision": "/home/brian/code2/workspace/scripts/router_review.py:63"
       }
-     }
-    ],
-    "cheapest_design": "One existing Haiku 5.5 call per new task key with the rubric inside its system prompt, results cached; the report and weekly review make no model call. A learned router or a second model would cost more and the research found they often do not beat a fixed baseline (docs/planning/research-routing-best-practices.md:73)."
-   }
-  },
-  "acceptance": {
-   "status": "present",
-   "path": "docs/planning/acceptance-criteria.json",
-   "paths": [
-    "docs/planning/capabilities.json",
-    "docs/planning/decisions.json",
-    "docs/planning/review-page.json",
-    "docs/planning/coverage-trace.json",
-    "docs/planning/router/"
-   ]
-  },
-  "review_page": {
-   "status": "present",
-   "path": "proposals/planning-package/review-page/index.html",
-   "url": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/proposals/planning-package/review-page/index.html"
-  },
-  "cold_review": {
-   "status": "present",
-   "path": "docs/planning/cold-review.md",
-   "verdict": "revise",
-   "reviewed_revision": "f2bf05b4ee5d2770c0270d676bc1ea1082ab6aa1"
+    },
+    "diagrams": {
+      "status": "present",
+      "items": [
+        {
+          "path": "docs/planning/SYSTEM.md",
+          "question": "What is inside the plugin, and what talks to it? (context view)"
+        },
+        {
+          "path": "docs/planning/domain.graph.json",
+          "question": "How does a subagent task become a model and an effort cap, and how do its outcomes come back as proposed rule changes?"
+        },
+        {
+          "path": "docs/planning/open-questions.graph.json",
+          "question": "Which questions about the Haiku rules, the signals and the main-model lever are still open, whose call is each, and which concepts does each touch?"
+        }
+      ]
+    },
+    "plan": {
+      "status": "present",
+      "path": "docs/planning/next-plan.md",
+      "relies_on": [
+        "tier",
+        "effort-cap",
+        "judging-agent",
+        "pressure",
+        "classifier-verdict",
+        "outcome-signal",
+        "weekly-review",
+        "tier-decision",
+        "main-conversation-line",
+        "redo"
+      ],
+      "cost_basis": {
+        "steps": [
+          {
+            "step": "classify a subagent task (Haiku 5.5, once per new task key; repeats hit the cache)",
+            "per": "new task key",
+            "cost_per_run_usd": 0.000234,
+            "calls_per_run": 1,
+            "basis": "computed",
+            "evidence": "worked-out estimate with a guessed 4 characters per token ratio, not measured: hooks/lib/pricing.ts:517 system prompt is 2,187 characters and classifierPrompt cuts the task at 6,000 characters (hooks/lib/pricing.ts:536), so at most about 2,100 input tokens at 4 characters per token (a guess for the ratio); maxTokens is 48 (hooks/register.tsx:727); Haiku 5.5 price is $0.10 in and $0.50 out per million (hooks/lib/pricing.ts:9); no cached share assumed",
+            "computation": {
+              "calls": 1,
+              "input_tokens_per_call": 2100,
+              "input_usd_per_mtok": 0.1,
+              "cached_share": 0,
+              "cached_usd_per_mtok": 0.01,
+              "output_tokens_per_call": 48,
+              "output_usd_per_mtok": 0.5
+            }
+          }
+        ],
+        "cheapest_design": "One existing Haiku 5.5 call per new task key with the rubric inside its system prompt, results cached; the report and weekly review make no model call. A learned router or a second model would cost more and the research found they often do not beat a fixed baseline (docs/planning/research-routing-best-practices.md:73)."
+      }
+    },
+    "acceptance": {
+      "status": "present",
+      "path": "docs/planning/acceptance-criteria.json",
+      "paths": [
+        "docs/planning/capabilities.json",
+        "docs/planning/decisions.json",
+        "docs/planning/review-page.json",
+        "docs/planning/coverage-trace.json",
+        "docs/planning/router/"
+      ]
+    },
+    "review_page": {
+      "status": "present",
+      "path": "proposals/planning-package/review-page/index.html",
+      "url": "https://github.com/BrianMills2718/model-router/blob/tiers-feedback/proposals/planning-package/review-page/index.html"
+    },
+    "cold_review": {
+      "status": "present",
+      "path": "docs/planning/cold-review.md",
+      "verdict": "pass",
+      "reviewed_revision": "f2bf05b4ee5d2770c0270d676bc1ea1082ab6aa1"
+    }
   }
- }
 }
