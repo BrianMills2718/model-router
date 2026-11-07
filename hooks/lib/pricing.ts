@@ -357,12 +357,41 @@ export function worstPace(
   return worst
 }
 
-/** `7d window 10% used at 3% of the week: 3.3x pace, two tiers down`. */
+/** `7d window 10% used at 3% of the week: 3.3x pace, two tiers down`; `pooled week (both accounts) projected 116% by reset: two tiers down`. */
 export function paceText(p: Pace): string {
+  const down = p.steps === 2 ? ', two tiers down' : p.steps === 1 ? ', one tier down' : ''
+  if (p.kind === 'pooled') return `pooled week (both accounts) projected ${Math.round(p.percentUsed)}% by reset${down.replace(',', ':')}`
   const name = p.kind === 'five_hour' ? '5h' : '7d'
   const span = p.kind === 'five_hour' ? 'window' : 'week'
-  const down = p.steps === 2 ? ', two tiers down' : p.steps === 1 ? ', one tier down' : ''
   return `${name} window ${Math.round(p.percentUsed)}% used at ${Math.round(p.expected)}% of the ${span}: ${p.ratio.toFixed(1)}x pace${down}`
+}
+
+/** Where the pooled-usage job writes its reading, under `$HOME`. */
+export const POOLED_PACE_FILE = 'projects/data/logs/usage/latest.json'
+/** A pooled reading older than this is ignored. */
+export const POOLED_MAX_AGE_MS = 12 * 3_600_000
+
+/**
+ * The pooled (both accounts) pace from the usage job's `latest.json` text, or undefined when it
+ * doesn't parse, `level` isn't an integer 0-2, or `time` is missing, unparseable or over 12 hours old.
+ */
+export function parsePooledPace(text: string, now: number): Pace | undefined {
+  try {
+    const j = JSON.parse(text) as { level?: unknown; projected?: unknown; time?: unknown }
+    const level = j.level
+    if (typeof level !== 'number' || !Number.isInteger(level) || level < 0 || level > 2) return undefined
+    const at = typeof j.time === 'string' ? Date.parse(j.time) : NaN
+    if (!Number.isFinite(at) || now - at > POOLED_MAX_AGE_MS) return undefined
+    const projected = typeof j.projected === 'number' && Number.isFinite(j.projected) ? j.projected : 0
+    return { kind: 'pooled', percentUsed: Math.round(projected * 100), expected: 100, ratio: projected, steps: level as 0 | 1 | 2 }
+  } catch {
+    return undefined
+  }
+}
+
+/** The pace with more steps; the window pace on a tie. */
+export function strongerPace(window: Pace | undefined, pooled: Pace | undefined): Pace | undefined {
+  return pooled && (!window || pooled.steps > window.steps) ? pooled : window
 }
 
 /** The `pace` setting: true only for `on`. */

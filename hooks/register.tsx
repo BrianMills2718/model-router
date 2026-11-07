@@ -36,7 +36,11 @@ import {
   parseTier,
   type Pace,
   paceOf,
+  parsePooledPace,
+  POOLED_PACE_FILE,
+  strongerPace,
   paceOn,
+  paceText,
   pressureThreshold,
   worstPace,
   rescueReason,
@@ -341,13 +345,28 @@ async function windowPercent($: EngineInterface): Promise<number> {
   }
 }
 
-/** The window furthest ahead of pace; undefined when none, or the call fails. */
-async function currentPace($: EngineInterface, now: number) {
+/** The pooled (both accounts) pace from the usage job's file; undefined when missing, stale or broken. */
+async function pooledPace($: EngineInterface, now: number): Promise<Pace | undefined> {
   try {
-    return worstPace((await $.session.usage()).rateLimits, now)
+    const home = await $.env.get('HOME')
+    if (!home) return undefined
+    const path = `${home}/${POOLED_PACE_FILE}`
+    if (!(await $.fs.exists(path))) return undefined
+    return parsePooledPace(await $.fs.read(path), now)
   } catch {
     return undefined
   }
+}
+
+/** The pace in force: the window furthest ahead of pace or the pooled reading, whichever drops more tiers. */
+async function currentPace($: EngineInterface, now: number) {
+  let window: Pace | undefined
+  try {
+    window = worstPace((await $.session.usage()).rateLimits, now)
+  } catch {
+    window = undefined
+  }
+  return strongerPace(window, await pooledPace($, now))
 }
 
 /** What a mode does, as `/router` and `/router status` say it. */
@@ -1071,6 +1090,9 @@ export const register: Register = (on, options) => {
       const p = paceMode ? paceOf(w, now) : undefined
       return p ? `  · ${p.ratio.toFixed(1)}x pace${mode === 'on' && p.steps > 0 ? ` · ${p.steps === 2 ? 'two tiers' : 'one tier'} down` : ''}` : ''
     }
+    // The pooled reading gets its own line when it, not a window, is what moves routing.
+    const pooledInForce = paceMode ? await currentPace($, now) : undefined
+    const pooledLine = pooledInForce?.kind === 'pooled' && pooledInForce.steps > 0 ? pooledInForce : undefined
     const tight = pressureAt !== undefined && m.limits.some(w => w.percentUsed >= pressureAt)
     const rowsCost = Object.values(l.rows).reduce((sum, r) => sum + r.cost, 0)
 
@@ -1159,6 +1181,7 @@ export const register: Register = (on, options) => {
             (pressureAt !== undefined && w.percentUsed >= pressureAt) || (paceMode && (paceOf(w, now)?.steps ?? 0) > 0) ? 'yellow' : undefined,
           ),
         )}
+        {pooledLine && field('Pooled', paceText(pooledLine), 'yellow')}
         {budgetLimit !== undefined &&
           field('Budget', budgetText(t.cost, budgetLimit, now), t.cost >= (budgetLimit * BUDGET_WARN) / 100 ? 'yellow' : undefined)}
         {m.lastTurn &&

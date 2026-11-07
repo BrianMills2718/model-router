@@ -21,6 +21,8 @@ import {
   parseTier,
   paceOf,
   paceText,
+  parsePooledPace,
+  strongerPace,
   worstPace,
   rescueReason,
   rescueTier,
@@ -1821,5 +1823,107 @@ describe('pace: routing', () => {
     mock.clock(on, { now: T0 })
     paceLimits(on, 85, 0.2)
     expect(await spawnOn($, on, 'hard')).toBe('claude-haiku-5-5')
+  })
+})
+
+describe('pace: pooled reading', () => {
+  const T0 = 1_000_000_000_000
+  const iso = (ago: number) => new Date(T0 - ago).toISOString()
+  const file = (over: Record<string, unknown> = {}) =>
+    JSON.stringify({ verdict: 'off_track', projected: 1.1631, time: iso(HOUR), level: 2, ...over })
+
+  test('parsePooledPace builds a pooled pace and its text', async () => {
+    const p = parsePooledPace(file(), T0)!
+    expect(p.kind).toBe('pooled')
+    expect(p.steps).toBe(2)
+    expect(p.percentUsed).toBe(116)
+    expect(paceText(p)).toBe('pooled week (both accounts) projected 116% by reset: two tiers down')
+    expect(paceText(parsePooledPace(file({ level: 1 }), T0)!)).toBe('pooled week (both accounts) projected 116% by reset: one tier down')
+    expect(parsePooledPace(file({ projected: null, level: 0 }), T0)?.percentUsed).toBe(0)
+  })
+  test('stale, malformed or out-of-range readings are ignored', async () => {
+    expect(parsePooledPace(file({ time: iso(13 * HOUR) }), T0)).toBeUndefined()
+    expect(parsePooledPace(file({ time: undefined }), T0)).toBeUndefined()
+    expect(parsePooledPace('{not json', T0)).toBeUndefined()
+    expect(parsePooledPace(file({ level: 3 }), T0)).toBeUndefined()
+    expect(parsePooledPace(file({ level: 1.5 }), T0)).toBeUndefined()
+    expect(parsePooledPace(file({ level: '2' }), T0)).toBeUndefined()
+  })
+
+  // the window at `percentUsed` of a week with 20% elapsed; the pooled file as `text` (undefined = no file)
+  function setup(on: any, text: string | undefined, percentUsed = 10) {
+    mock.clock(on, { now: T0 })
+    on('session.usage', async () => ({
+      value: {
+        startedAt: 0,
+        context: {} as never,
+        rateLimits: [{ kind: 'seven_day', percentUsed, resetsAt: new Date(T0 + 0.8 * WEEK).toISOString() }],
+      },
+    }))
+    on('env.get', async () => ({ value: '/home/test' }))
+    on('fs.exists', async () => ({ value: text !== undefined }))
+    on('fs.read', async () => ({ value: text ?? '' }))
+  }
+  async function spawnOn($: any, on: any, text: string, over: Record<string, unknown> = {}) {
+    let spawnedOn: string | undefined
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text, usage: USAGE } }))
+    on('agent.spawn', async (_$: any, e: any) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'pool1' }
+    })
+    await $.agent.spawn(spawnInput({ subagentType: 'general-purpose', ...over }))
+    return spawnedOn
+  }
+  const run = (name: string, options: Record<string, unknown>, fn: any) => test(name, { options }, fn)
+  const opts = { pace: 'on', limitPressure: 'off' }
+
+  run('level 2 drops a standard agent two tiers', opts, async ($: any, on: any) => {
+    setup(on, file())
+    expect(await spawnOn($, on, 'standard')).toBe('claude-haiku-5-5')
+  })
+  run('level 1 drops a hard agent one tier', opts, async ($: any, on: any) => {
+    setup(on, file({ level: 1 }))
+    expect(await spawnOn($, on, 'hard')).toBe('claude-sonnet-5-5')
+  })
+  run('level 2 never drops a reviewer below Sonnet', opts, async ($: any, on: any) => {
+    setup(on, file())
+    expect(await spawnOn($, on, 'hard', { subagentType: 'reviewer' })).toBe('claude-sonnet-5-5')
+  })
+  run('level 2 never drops a standard code-review below Sonnet', opts, async ($: any, on: any) => {
+    setup(on, file())
+    expect(await spawnOn($, on, 'standard', { subagentType: 'code-review' })).toBe('claude-sonnet-5-5')
+  })
+  run('level 2 keeps Opus for a risky task', opts, async ($: any, on: any) => {
+    setup(on, file())
+    expect(await spawnOn($, on, 'hard risky')).toBe('claude-opus-5-5')
+  })
+  run('a 13 h old file is ignored', opts, async ($: any, on: any) => {
+    setup(on, file({ time: iso(13 * HOUR) }))
+    expect(await spawnOn($, on, 'hard')).toBe('claude-opus-5-5')
+  })
+  run('a malformed file is ignored', opts, async ($: any, on: any) => {
+    setup(on, '{broken')
+    expect(await spawnOn($, on, 'hard')).toBe('claude-opus-5-5')
+  })
+  run('a missing file is ignored', opts, async ($: any, on: any) => {
+    setup(on, undefined)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-opus-5-5')
+  })
+  run('pace off ignores the file', { limitPressure: 'off' }, async ($: any, on: any) => {
+    setup(on, file())
+    expect(await spawnOn($, on, 'hard')).toBe('claude-opus-5-5')
+  })
+  run('the window wins a tie', opts, async ($: any, on: any) => {
+    // window at 2x (45% used at 20% of the week) and pooled level 2: both two tiers
+    setup(on, file(), 45)
+    expect(await spawnOn($, on, 'hard')).toBe('claude-haiku-5-5')
+  })
+  test('strongerPace keeps the window on a tie and takes pooled when it drops more', async () => {
+    const w = { kind: 'seven_day', percentUsed: 30, expected: 20, ratio: 1.5, steps: 1 as const }
+    const pool = (steps: 0 | 1 | 2) => ({ kind: 'pooled', percentUsed: 116, expected: 100, ratio: 1.16, steps })
+    expect(strongerPace(w, pool(1))).toBe(w)
+    expect(strongerPace(w, pool(2))?.kind).toBe('pooled')
+    expect(strongerPace(undefined, pool(0))?.kind).toBe('pooled')
+    expect(strongerPace(w, undefined)).toBe(w)
   })
 })
