@@ -14,6 +14,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 - Judging agent types (architect, Plan, reviewer, code-review, project-brain, researcher, `*-reviewer`) never run on Haiku, even under pace or rate-limit pressure.
 - README: the main-model lever is the settings default plus `/model`; the feedback loop and its weekly review.
 
+## [0.8.1-pace.2] - 2026-11-07
+
+### Added
+
+- Pace also reads the pooled two-account reading from `$HOME/projects/data/logs/usage/latest.json` (kind `pooled`; `level` 0-2 tiers down). Ignored silently unless it parses, `level` is an integer 0-2 and `time` is at most 12 hours old. The reading with more steps wins, the window on a tie. The pane shows a Pooled line when it is in force; the Why line reads `pooled week (both accounts) projected 116% by reset: two tiers down`. Floors are unchanged. Source: Brian, 2026-11-07 ("we need to ratchet down the defdault model and ratcht the routing to chooise cheaper models to make us not run out of usage").
+
 ## [0.8.1-pace.1] - 2026-11-05
 
 ### Added
