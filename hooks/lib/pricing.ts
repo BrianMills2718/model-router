@@ -199,6 +199,34 @@ export function judgeRoleOf(agentType: string): string | undefined {
   return JUDGE_TYPES.has(name) || name.endsWith('-reviewer') ? 'judge' : undefined
 }
 
+const DEF_TIER: Record<string, Tier> = { haiku: 'simple', sonnet: 'standard', opus: 'hard' }
+
+/** The tier an agent definition's frontmatter `model:` names (haiku, sonnet, opus or a full id), else undefined. */
+export function definitionModelTier(text: string): Tier | undefined {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)
+  if (!m) return undefined
+  const line = /^model:\s*['"]?([\w.-]+)/m.exec(m[1]!)
+  if (!line) return undefined
+  const v = line[1]!.toLowerCase()
+  const fam = Object.keys(DEF_TIER).find(k => v === k || v.includes(`-${k}-`) || v.startsWith(`${k}-`) || v.includes(k))
+  return fam ? DEF_TIER[fam] : undefined
+}
+
+/**
+ * The lowest tier a judging agent runs on while usage is on pace (no pace, rate-limit or budget step):
+ * its own definition's model, else Opus for a reviewer (`reviewer` or `*-reviewer`). Under pressure
+ * the judge floor is Sonnet (PRESSURE_FLOOR). Undefined for agents that do not judge.
+ * Source: Brian, 2026-11-07 (harness presentation): "judges stay on Opus at level 0 with a Sonnet floor";
+ * tools row target: "take the judge floor from the agent definition (Opus for reviewer and planning reviewers)".
+ */
+export function judgeFloor(agentType: string, definition?: string): Tier | undefined {
+  if (judgeRoleOf(agentType) !== 'judge') return undefined
+  const fromDef = definition ? definitionModelTier(definition) : undefined
+  if (fromDef) return fromDef
+  const name = (agentType.split(':').pop() ?? '').toLowerCase()
+  return name === 'reviewer' || name.endsWith('-reviewer') ? 'hard' : undefined
+}
+
 export function roleOf(agentType: string): string | undefined {
   const m = /^model-router:(\w+)$/.exec(agentType)
   return m ? m[1] : undefined
@@ -248,7 +276,7 @@ export function routeTier(
   tier: Tier,
   role: string | undefined,
   allowLong: boolean,
-  o: { risky?: boolean; underPressure?: boolean; cheapest?: boolean; down?: number } = {},
+  o: { risky?: boolean; underPressure?: boolean; cheapest?: boolean; down?: number; judgeMin?: Tier } = {},
 ): Tier {
   // The budget is spent: the cheapest tier the role allows. Only the risk floor goes higher.
   if (o.cheapest) {
@@ -260,6 +288,8 @@ export function routeTier(
   // `down` is how many tiers to drop (pace); `underPressure` is the one-tier rule.
   const down = Math.max(o.down ?? 0, o.underPressure ? 1 : 0)
   let t = clampTier(down > 0 ? ORDER[Math.max(floor, i - down)]! : tier, role, allowLong && down === 0)
+  // A judge's own floor holds only while nothing pushes routing down; then PRESSURE_FLOOR (Sonnet) applies.
+  if (role === 'judge' && o.judgeMin && down === 0 && ORDER.indexOf(t) < ORDER.indexOf(o.judgeMin)) t = o.judgeMin
   if (o.risky && ORDER.indexOf(t) < ORDER.indexOf('hard')) t = 'hard'
   return t
 }
@@ -364,6 +394,17 @@ export function paceText(p: Pace): string {
   const name = p.kind === 'five_hour' ? '5h' : '7d'
   const span = p.kind === 'five_hour' ? 'window' : 'week'
   return `${name} window ${Math.round(p.percentUsed)}% used at ${Math.round(p.expected)}% of the ${span}: ${p.ratio.toFixed(1)}x pace${down}`
+}
+
+/** Where the router writes one JSON line per routed spawn, under `$HOME`, one file per day. */
+export const DECISION_LOG_DIR = 'projects/data/logs/model-router'
+
+/** One decision-log line: what was asked, what was chosen and why (no prompt text). */
+export function decisionLine(d: {
+  time: string; agentType: string; label: string; via: string; asked?: Tier; tier: Tier; model?: string
+  why: string; judgeMin?: Tier; pace?: number; pressure?: number; budget?: number; risky?: boolean
+}): string {
+  return JSON.stringify(d) + '\n'
 }
 
 /** Where the pooled-usage job writes its reading, under `$HOME`. */

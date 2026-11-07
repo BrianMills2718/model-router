@@ -1,6 +1,6 @@
 {
   "name": "model-router",
-  "version": "0.8.1-pace.2",
+  "version": "0.8.1-pace.3",
   "description": "Picks Haiku, Sonnet, Opus or Fable for each subagent and shows what it cost.",
   "author": {
     "name": "Andy"
