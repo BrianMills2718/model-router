@@ -4,6 +4,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+### Added (0.8.1-pace.3)
+
+- Judges keep their own definition's model (Opus for `reviewer` and any `*-reviewer`) while no pace, rate-limit or budget step is in force; Sonnet stays the floor under any step. Source: Brian, 2026-11-07 ("judges stay on Opus at level 0 with a Sonnet floor").
+- Decision log: one JSON line per routed spawn in `$HOME/projects/data/logs/model-router/<day>.jsonl`.
+- README install line points at this fork (`BrianMills2718/model-router`), installed from GitHub.
+
 ### Changed
 
 - Effort cap for `hard` is now `high` (was unchanged); Haiku's cap is `medium` when the prompt is over about 50k tokens.

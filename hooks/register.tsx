@@ -38,6 +38,9 @@ import {
   paceOf,
   parsePooledPace,
   POOLED_PACE_FILE,
+  DECISION_LOG_DIR,
+  decisionLine,
+  judgeFloor,
   strongerPace,
   paceOn,
   paceText,
@@ -342,6 +345,32 @@ async function windowPercent($: EngineInterface): Promise<number> {
     return fullestWindow((await $.session.usage()).rateLimits)
   } catch {
     return 0
+  }
+}
+
+/** A judging agent's definition text from `~/.claude/agents/<name>.md`, or undefined (plugin and built-in agents). */
+async function agentDefinition($: EngineInterface, agentType: string): Promise<string | undefined> {
+  try {
+    const home = await $.env.get('HOME')
+    const name = agentType.split(':').pop() ?? ''
+    if (!home || !/^[\w.-]+$/.test(name)) return undefined
+    const path = `${home}/.claude/agents/${name}.md`
+    return (await $.fs.exists(path)) ? await $.fs.read(path) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Append one decision line to today's log (one file per day). Never blocks a spawn. */
+async function logDecision($: EngineInterface, now: number, line: string): Promise<void> {
+  try {
+    const home = await $.env.get('HOME')
+    if (!home) return
+    const path = `${home}/${DECISION_LOG_DIR}/${new Date(now).toISOString().slice(0, 10)}.jsonl`
+    const before = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
+    await $.fs.write(path, before + line)
+  } catch {
+    // the log is a side job
   }
 }
 
@@ -708,6 +737,8 @@ export const register: Register = (on, options) => {
     let pressure: number | undefined
     let paceHit: Pace | undefined
     let budgetPct: number | undefined
+    let judgeMin: Tier | undefined
+    let askedTier: Tier | undefined
     let why: string
 
     if (respectExplicit && e.model) {
@@ -787,7 +818,9 @@ export const register: Register = (on, options) => {
       const asked = picked ?? fallbackTier(limitRole)
       // Agents run in the background by default, so only the task's own words open up `long`.
       const allowLong = asksForLongRun(`${e.description}\n${e.prompt}`)
-      tier = routeTier(asked, limitRole, allowLong, { risky })
+      judgeMin = limitRole === 'judge' ? judgeFloor(e.subagentType, await agentDefinition($, e.subagentType)) : undefined
+      tier = routeTier(asked, limitRole, allowLong, { risky, judgeMin })
+      askedTier = asked
       if (pressureAt !== undefined) {
         const pct = await windowPercent($)
         const lower = pct >= pressureAt ? routeTier(asked, limitRole, allowLong, { risky, underPressure: true }) : tier
@@ -839,6 +872,12 @@ export const register: Register = (on, options) => {
         ? effortCapFor(tier, e.prompt.length)
         : undefined
     if (effort) why += ` · effort ≤ ${effort}`
+    if (judgeMin && askedTier && tier === judgeMin && tier !== askedTier) why += ` · judge floor ${shortModel(MODEL_FOR_TIER[judgeMin])} (its own definition)`
+    await logDecision($, now, decisionLine({
+      time: new Date(now).toISOString(), agentType: e.subagentType, label: e.description, via: via ?? 'fallback',
+      asked: askedTier, tier, model, why, judgeMin, pace: paceHit?.steps, pressure, budget: budgetPct,
+      risky: risky || undefined,
+    }))
 
     // Held in `starting` until the cap is known: the agent's first request can arrive
     // before `next` answers and must wait for its effort cap.

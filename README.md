@@ -4,9 +4,16 @@ A Claude Code mod that picks a model for each subagent and shows what it cost.
 
 ## Install
 
+This is Brian's fork of `aott33/model-router`. Install it from GitHub:
+
 ```
-/plugin install model-router --marketplace aott33/model-router
+/plugin marketplace add BrianMills2718/model-router
+/plugin install model-router@model-router
 ```
+
+On Brian's machines agent-skills does this from git: `.rulesync/client-settings.jsonc` names the
+marketplace (`extraKnownMarketplaces.model-router`, source `github`, repo
+`BrianMills2718/model-router`) and enables the plugin; `make client-config-apply` writes it.
 
 Needs Claude Code 2.1.287+. For development: `claude --plugin-dir ./model-router`.
 
@@ -32,6 +39,8 @@ Rules on top:
 - **Pace.** With `pace` on, a 5h or 7d window used faster than its time has passed routes one tier cheaper at 1.25x pace and two tiers at 2x, so the weekly limit lasts until it resets. It also reads the pooled reading across both Claude accounts from `$HOME/projects/data/logs/usage/latest.json` (written every 6 hours by `scripts/usage_pace.py` in code2-workspace; its `level` 0-2 is the tiers to drop). That file counts only if it parses, `level` is 0-2 and its `time` is at most 12 hours old; otherwise it is ignored silently. Whichever of the window and pooled readings drops more tiers applies (the window on a tie), and the pane shows a Pooled line when it is the one in force. Same floors as limit pressure; the stronger of the two rules wins. Source: Brian, 2026-11-07: "we are defintiely on track to run otu of usage across my accounts ... we need to ratchet down the defdault model and ratcht the routing to chooise cheaper models to make us not run out of usage".
 - **Budget.** With a session budget set, routing goes one tier cheaper at 80% and to the cheapest allowed model at 100%. Risky tasks still get Opus.
 - **Judging agents never get Haiku.** Any agent type named architect, Plan, reviewer, code-review, project-brain, researcher or ending in `-reviewer` runs on Sonnet or higher, and pace or rate-limit pressure cannot push it below Sonnet. A wrong approval or plan is a silent error. Source: inferred by agent (research report section 4); Brian: "design, review and anything Brian reads" stay off Haiku.
+- **Judges keep their own model while usage is on pace.** With no pace, rate-limit or budget step in force, a judging agent runs at least on the model its own definition names (`~/.claude/agents/<name>.md`, frontmatter `model:`; `reviewer` says Opus), and a reviewer with no readable definition (a plugin's `*-reviewer`) runs on Opus. Any step down makes Sonnet its floor. Source: Brian, 2026-11-07: judges stay on Opus at usage level 0 with a Sonnet floor.
+- **Decision log.** Every routed spawn appends one JSON line (time, agent type, label, who decided, asked and final tier, model, why; never the prompt) to `$HOME/projects/data/logs/model-router/<YYYY-MM-DD>.jsonl`.
 - **Effort** is only ever lowered, never raised.
 - **Left alone:** models Claude names, forks, workflow agents and teammates.
 

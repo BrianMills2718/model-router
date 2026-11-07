@@ -5,6 +5,9 @@ import {
   capEffort,
   effortCapFor,
   judgeRoleOf,
+  judgeFloor,
+  definitionModelTier,
+  decisionLine,
   LONG_PROMPT_CHARS,
   EFFORT_CAP,
   CLASSIFIER_SYSTEM,
@@ -115,6 +118,33 @@ describe('pure routing rules', () => {
     expect(clampTier('hard', 'judge')).toBe('hard')
     // pace and pressure cannot push a judge below Sonnet
     expect(routeTier('hard', 'judge', false, { down: 2 })).toBe('standard')
+  })
+
+  test('judges run on their own definition model while on pace, Sonnet under pace', async () => {
+    const opusDef = '---\nname: reviewer\nmodel: opus\ntools: Read\n---\nbody'
+    expect(definitionModelTier(opusDef)).toBe('hard')
+    expect(definitionModelTier('---\nmodel: claude-sonnet-5-5\n---\n')).toBe('standard')
+    expect(definitionModelTier('---\nmodel: inherit\n---\n')).toBe(undefined)
+    expect(definitionModelTier('no frontmatter')).toBe(undefined)
+    expect(judgeFloor('reviewer', opusDef)).toBe('hard')
+    expect(judgeFloor('project-brain', '---\nmodel: sonnet\n---\n')).toBe('standard')
+    // a plugin reviewer with no readable definition is still a reviewer: Opus
+    expect(judgeFloor('company-planning:planning-compliance-reviewer')).toBe('hard')
+    expect(judgeFloor('Plan')).toBe(undefined)
+    expect(judgeFloor('bulk-worker', opusDef)).toBe(undefined)
+    // level 0 (no step down): the classifier's Sonnet is raised to the definition's Opus
+    expect(routeTier('standard', 'judge', false, { judgeMin: 'hard' })).toBe('hard')
+    // any pace or pressure step: the floor is Sonnet, not Opus
+    expect(routeTier('standard', 'judge', false, { judgeMin: 'hard', down: 1 })).toBe('standard')
+    expect(routeTier('hard', 'judge', false, { judgeMin: 'hard', underPressure: true })).toBe('standard')
+    // judgeMin means nothing for other roles
+    expect(routeTier('simple', 'runner', false, { judgeMin: 'hard' })).toBe('simple')
+  })
+
+  test('decision log line is one JSON line without the prompt', async () => {
+    const line = decisionLine({ time: 't', agentType: 'reviewer', label: 'x', via: 'haiku', asked: 'standard', tier: 'hard', why: 'w' })
+    expect(line.endsWith('\n')).toBe(true)
+    expect(JSON.parse(line).tier).toBe('hard')
   })
 
   test('long only when the task asks for a long or unattended run', async () => {
