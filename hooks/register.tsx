@@ -746,6 +746,18 @@ export const register: Register = (on, options) => {
       model = e.model
       tier = tierOfModel(e.model)
       why = `kept: the Agent call named ${shortModel(e.model)}`
+      // Brian, 2026-11-10 (decision 2, "i approve"): under usage pace pressure an explicit Opus on a
+      // non-judging agent drops to Sonnet, because agents name Opus by habit (73 of 132 Opus spawns on
+      // Nov 9-10) and the pace rule never reached them. Judges keep Opus; nothing drops below Sonnet.
+      if (paceMode && tier === 'hard' && !judgeRoleOf(e.subagentType)) {
+        const p = await currentPace($, now)
+        if (p && p.steps > 0) {
+          tier = 'standard'
+          model = MODEL_FOR_TIER[tier]
+          paceHit = p
+          why = `explicit ${shortModel(e.model)} lowered to ${shortModel(model)}: usage pace (${p.steps} tier${p.steps === 1 ? '' : 's'})`
+        }
+      }
     } else if (mode !== 'on') {
       via = 'forced'
       tier = FORCED_TIER[mode]
