@@ -5,6 +5,7 @@ import {
   capEffort,
   effortCapFor,
   judgeRoleOf,
+  readOnlyAgent,
   judgeFloor,
   definitionModelTier,
   decisionLine,
@@ -308,6 +309,15 @@ describe('agent.spawn', () => {
     await $.agent.spawn(spawnInput({ isTeammate: true, background: true, name: 'scout' }))
     expect(spawnedOn).toBe(undefined)
     expect(classified).toBe(false)
+  })
+})
+
+describe('read-only agents skip the risk floor', () => {
+  test('publish-checker is read-only, a deployer is not', () => {
+    expect(readOnlyAgent('publish-checker')).toBe(true)
+    expect(readOnlyAgent('Publish-Checker')).toBe(true)
+    expect(readOnlyAgent('release')).toBe(false)
+    expect(readOnlyAgent('model-router:builder')).toBe(false)
   })
 })
 

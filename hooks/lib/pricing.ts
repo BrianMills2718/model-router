@@ -302,6 +302,18 @@ export function routeTier(
 const RISKY_ACT =
   /\b(deploy|ship|release|roll\s?out)\w*\b[^.\n]{0,40}\b(to|on|in)\s+(prod|production|live)\b|\bdrop\s+(table|database|schema)\b|\btruncate\s+table\b|\brm\s+-rf\s+\/|\bgit\s+push\s+(-f|--force)\b|\bforce[- ]push\b|\b(delete|wipe|purge)\b[^.\n]{0,30}\b(prod|production)\s+(data|database|db|bucket|users?)\b/i
 
+/**
+ * Agent types that only read and report, so the task's subject (a public push, a deploy) is not an act
+ * the agent performs. The risk floor never applies to them; their own definition's model holds.
+ * Matched on the agent type's name, not on task prose.
+ * Source: Brian, 2026-11-05: publish checks belong on Sonnet (22 of 28 had run on Opus); code2-workspace #282:
+ * the classifier called a publish check "risky" because the brief said the repository was about to go public.
+ */
+const READ_ONLY_TYPES = new Set(['publish-checker'])
+export function readOnlyAgent(agentType: string): boolean {
+  return READ_ONLY_TYPES.has((agentType.split(':').pop() ?? '').toLowerCase())
+}
+
 export function looksRisky(text: string): boolean {
   return RISKY_ACT.test(text)
 }
