@@ -27,6 +27,7 @@ import {
   fallbackTier,
   effortCapFor,
   judgeRoleOf,
+  readOnlyAgent,
   familyOf,
   fullestWindow,
   isLongPrompt,
@@ -826,7 +827,7 @@ export const register: Register = (on, options) => {
       via ??= 'fallback'
       // Without Haiku's judgment, only a plainly destructive act counts as risky.
       if (via !== 'haiku') risky ||= looksRisky(`${e.description}\n${e.prompt}`)
-      risky &&= riskFloor
+      risky &&= riskFloor && !readOnlyAgent(e.subagentType)
       const asked = picked ?? fallbackTier(limitRole)
       // Agents run in the background by default, so only the task's own words open up `long`.
       const allowLong = asksForLongRun(`${e.description}\n${e.prompt}`)
