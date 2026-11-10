@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+### Changed (unreleased)
+
+- Under usage pace pressure (pooled or window reading above 1.25x), an explicit `model: "opus"` on a non-judging agent is lowered to Sonnet; judges keep Opus and nothing goes below Sonnet. Before, an explicit Opus skipped routing entirely: 73 of 132 Opus spawns on 2026-11-09 and 2026-11-10 were named that way. Source: Brian, 2026-11-10 ("decision 2 i approve").
+
 ### Added (0.8.1-pace.3)
 
 - Judges keep their own definition's model (Opus for `reviewer` and any `*-reviewer`) while no pace, rate-limit or budget step is in force; Sonnet stays the floor under any step. Source: Brian, 2026-11-07 ("judges stay on Opus at level 0 with a Sonnet floor").

@@ -1856,6 +1856,46 @@ describe('pace: routing', () => {
   })
 })
 
+describe('pace: explicit Opus', () => {
+  const T0 = 1_000_000_000_000
+  function limits(on: any, percentUsed: number, elapsed: number) {
+    on('session.usage', async () => ({
+      value: {
+        startedAt: 0,
+        context: {} as never,
+        rateLimits: [{ kind: 'seven_day', percentUsed, resetsAt: new Date(T0 + (1 - elapsed) * WEEK).toISOString() }],
+      },
+    }))
+  }
+  async function spawn($: any, on: any, over: Record<string, unknown>) {
+    let spawnedOn: string | undefined
+    on('model.complete', async () => ({ value: { isAnswered: true as const, text: 'hard', usage: USAGE } }))
+    on('agent.spawn', async (_$: any, e: any) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'ex1' }
+    })
+    await $.agent.spawn(spawnInput(over))
+    return spawnedOn
+  }
+  const run = (name: string, options: Record<string, unknown>, fn: any) => test(name, { options }, fn)
+
+  run('under pace pressure an explicit Opus on a general agent drops to Sonnet', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    limits(on, 45, 0.2)
+    expect(await spawn($, on, { subagentType: 'general-purpose', model: 'opus' })).toBe('claude-sonnet-5-5')
+  })
+  run('a judge keeps its explicit Opus under pace pressure', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    limits(on, 45, 0.2)
+    expect(await spawn($, on, { subagentType: 'reviewer', model: 'opus' })).toBe('opus')
+  })
+  run('on pace an explicit Opus is kept', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    limits(on, 24, 0.2)
+    expect(await spawn($, on, { subagentType: 'general-purpose', model: 'opus' })).toBe('opus')
+  })
+})
+
 describe('pace: pooled reading', () => {
   const T0 = 1_000_000_000_000
   const iso = (ago: number) => new Date(T0 - ago).toISOString()
