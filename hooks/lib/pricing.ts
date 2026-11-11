@@ -193,7 +193,7 @@ export const ROLE_LIMITS: Record<string, { min?: Tier; max?: Tier; fallback: Tie
  * Source: Brian, 2026-11-06 on #162: "haiku in some places"; design, review and anything he reads
  * stay off Haiku is inferred by agent from the research (silent-error class, section 4).
  */
-const JUDGE_TYPES = new Set(['architect', 'plan', 'reviewer', 'code-review', 'project-brain', 'researcher'])
+const JUDGE_TYPES = new Set(['architect', 'plan', 'reviewer', 'code-review', 'project-brain', 'researcher', 'publish-checker'])
 export function judgeRoleOf(agentType: string): string | undefined {
   const name = (agentType.split(':').pop() ?? '').toLowerCase()
   return JUDGE_TYPES.has(name) || name.endsWith('-reviewer') ? 'judge' : undefined
