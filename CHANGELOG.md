@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+### Fixed (0.8.1-pace.5)
+
+- Version bump only: the risk-floor fix for `publish-checker` (#8, merged 2026-11-10 07:45Z) shipped with the version unchanged at 0.8.1-pace.4, so the installed plugin never updated and publish checks kept running on Opus (code2-workspace #282, #349). Source: code2-workspace #349.
+
 ### Changed (0.8.1-pace.4)
 
 - Under usage pace pressure (pooled or window reading above 1.25x), an explicit `model: "opus"` on a non-judging agent is lowered to Sonnet; judges keep Opus and nothing goes below Sonnet. Before, an explicit Opus skipped routing entirely: 73 of 132 Opus spawns on 2026-11-09 and 2026-11-10 were named that way. Source: Brian, 2026-11-10 ("decision 2 i approve").
