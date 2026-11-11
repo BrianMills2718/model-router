@@ -212,7 +212,7 @@
       "status": "present",
       "path": "docs/planning/cold-review.md",
       "verdict": "pass",
-      "reviewed_revision": "f2bf05b4ee5d2770c0270d676bc1ea1082ab6aa1"
+      "reviewed_revision": "92d90d9c39a7811341749db8c5e1436a6ba13c64"
     }
   }
 }
