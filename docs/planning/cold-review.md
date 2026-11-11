@@ -3,6 +3,8 @@
 Reviewer: company-planning:planning-compliance-reviewer, second pass, 2026-11-06.
 Reviewed revision: f2bf05b4ee5d2770c0270d676bc1ea1082ab6aa1 (package read at 27ab5bd).
 
+Third pass (pass, 2026-11-10, code2-workspace #349): reviewed revision 92d90d9c39a7811341749db8c5e1436a6ba13c64; scoped to next-plan.md, open-questions.graph.json, review-page.json, Q3/Q4 and the cost basis. Four notes, no blockers: next-plan.md:30 cites register.tsx:494 (manifest says 727) and a 2,187-character rubric (measured 2,153); Q3/Q4 evidence has no saved page capture; subject_revision still f2bf05b.
+
 First pass (revise): entrypoints on main, Q8 open, Q3 and Q4 deferred, cost-basis label mismatch, "eight criteria", README figures, missing ledger questions. All seven fixed.
 
 Second pass: validator 9 of 10 parts ok before this verdict was recorded (cold_review only); substance 9 of 9; citations 21 resolved; tier checks 4 of 4; coverage 7 of 7; cost basis recomputed ($0.000234 per call); Q10 intervals recomputed. No blocking finding.
