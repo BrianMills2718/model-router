@@ -8,7 +8,7 @@ run() { echo "## $1" >> "$out"; echo "\$ $2" >> "$out"; bash -c "$2" >> "$out" 2
 run "plugin validate" "claude plugin validate ."
 run "plugin tests (make check runs validate then these)" "claude plugin test ."
 run "router report and weekly review tests (code2-workspace)" "cd $HOME/code2/workspace && python3 -m pytest tests/test_router_report.py tests/test_router_review.py -q"
-run "wiki rule" "python3 $HOME/code/project-meta/scripts/md_file_cap.py --repo . --ref HEAD"
+run "wiki rule" "python3 $HOME/code2/agentic-engineering-system-canonical/scripts/md_file_cap.py --repo . --ref HEAD"
 run "semantic spectrum (project and planning layers)" "python3 $S/spectrum_check.py --repo . docs/planning/planning-package.json"
 run "typed-graph schema over the three graphs" "python3 - <<'PY'
 import json,sys
