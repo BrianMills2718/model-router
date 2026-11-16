@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+### Fixed (0.8.1-pace.7)
+
+- `bulk-worker` skips the risk floor, like `publish-checker`: its definition forbids delete, push, merge, publish and send, so a classifier "risky" on its brief (2026-11-14, two runs "write draft.json and run checker", logged "easy risky → hard (risk floor)") must not lift it from Haiku to Opus. Source: code2-workspace #441.
+
 ### Fixed (0.8.1-pace.6)
 
 - `publish-checker` is a judging agent: it keeps a Sonnet floor under pace and limit pressure. On 2026-11-10 two publish checks (limits 88% and 99%, classifier "easy") were stepped down to Haiku, against the written rule (publish-checker on Sonnet). Source: code2-workspace #392.

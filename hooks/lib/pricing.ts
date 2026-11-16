@@ -306,10 +306,13 @@ const RISKY_ACT =
  * Agent types that only read and report, so the task's subject (a public push, a deploy) is not an act
  * the agent performs. The risk floor never applies to them; their own definition's model holds.
  * Matched on the agent type's name, not on task prose.
+ * `bulk-worker` is listed too: its definition forbids deleting, pushing, merging, publishing and sending, so
+ * it cannot perform a risky act whatever the brief says (2 runs on 2026-11-14, "write draft.json and run the
+ * checker", were called risky and ran on Opus against the written rule, Haiku; code2-workspace #441).
  * Source: Brian, 2026-11-05: publish checks belong on Sonnet (22 of 28 had run on Opus); code2-workspace #282:
  * the classifier called a publish check "risky" because the brief said the repository was about to go public.
  */
-const READ_ONLY_TYPES = new Set(['publish-checker'])
+const READ_ONLY_TYPES = new Set(['publish-checker', 'bulk-worker'])
 export function readOnlyAgent(agentType: string): boolean {
   return READ_ONLY_TYPES.has((agentType.split(':').pop() ?? '').toLowerCase())
 }
