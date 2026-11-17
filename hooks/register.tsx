@@ -747,6 +747,15 @@ export const register: Register = (on, options) => {
       model = e.model
       tier = tierOfModel(e.model)
       why = `kept: the Agent call named ${shortModel(e.model)}`
+      // A judging agent never runs on Haiku, even when the call names it (code2-workspace #469:
+      // a reviewer spawned with model "haiku" ran on Haiku). Raise it to its own definition's floor.
+      if (limitRole === 'judge' && tier === 'simple') {
+        judgeMin = judgeFloor(e.subagentType, await agentDefinition($, e.subagentType)) ?? 'standard'
+        if (ORDER.indexOf(judgeMin) < ORDER.indexOf('standard')) judgeMin = 'standard'
+        why = `raised: the Agent call named ${shortModel(e.model)}, a judge never runs on Haiku · judge floor ${shortModel(MODEL_FOR_TIER[judgeMin])}`
+        model = MODEL_FOR_TIER[judgeMin]
+        tier = judgeMin
+      }
       // Brian, 2026-11-10 (decision 2, "i approve"): under usage pace pressure an explicit Opus on a
       // non-judging agent drops to Sonnet, because agents name Opus by habit (73 of 132 Opus spawns on
       // Nov 9-10) and the pace rule never reached them. Judges keep Opus; nothing drops below Sonnet.
