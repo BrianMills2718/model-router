@@ -286,6 +286,28 @@ describe('agent.spawn', () => {
     expect(classified).toBe(false)
   })
 
+  test('a judge the caller named Haiku is raised to Opus (code2-workspace #469)', async ($, on) => {
+    mock.clock(on)
+    let spawnedOn: string | undefined
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'a4j' }
+    })
+    await $.agent.spawn(spawnInput({ subagentType: 'reviewer', model: 'haiku' }))
+    expect(spawnedOn).toBe('claude-opus-5-5')
+  })
+
+  test('a non-judge the caller named Haiku stays on Haiku', async ($, on) => {
+    mock.clock(on)
+    let spawnedOn: string | undefined
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'a4k' }
+    })
+    await $.agent.spawn(spawnInput({ subagentType: 'bulk-worker', model: 'haiku' }))
+    expect(spawnedOn).toBe('haiku')
+  })
+
   test('forks are left alone', async ($, on) => {
     mock.clock(on)
     let spawnedOn: string | undefined = 'unset'
