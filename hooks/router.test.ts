@@ -297,6 +297,28 @@ describe('agent.spawn', () => {
     expect(spawnedOn).toBe('claude-opus-5-5')
   })
 
+  test('a judge the caller named Sonnet is raised to Opus while usage is on pace (code2-workspace #470)', async ($, on) => {
+    mock.clock(on)
+    let spawnedOn: string | undefined
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'a4s' }
+    })
+    await $.agent.spawn(spawnInput({ subagentType: 'reviewer', model: 'sonnet' }))
+    expect(spawnedOn).toBe('claude-opus-5-5')
+  })
+
+  test('a non-judge the caller named Sonnet stays on Sonnet', async ($, on) => {
+    mock.clock(on)
+    let spawnedOn: string | undefined
+    on('agent.spawn', async (_$, e) => {
+      spawnedOn = e.model
+      return { model: e.model ?? '', agentId: 'a4t' }
+    })
+    await $.agent.spawn(spawnInput({ subagentType: 'general-purpose', model: 'sonnet' }))
+    expect(spawnedOn).toBe('sonnet')
+  })
+
   test('a non-judge the caller named Haiku stays on Haiku', async ($, on) => {
     mock.clock(on)
     let spawnedOn: string | undefined
@@ -1924,6 +1946,16 @@ describe('pace: explicit Opus', () => {
     mock.clock(on, { now: T0 })
     limits(on, 45, 0.2)
     expect(await spawn($, on, { subagentType: 'reviewer', model: 'opus' })).toBe('opus')
+  })
+  run('a judge named Sonnet keeps Sonnet under pace pressure (code2-workspace #470)', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    limits(on, 45, 0.2)
+    expect(await spawn($, on, { subagentType: 'reviewer', model: 'sonnet' })).toBe('sonnet')
+  })
+  run('on pace a judge named Sonnet is raised to Opus (code2-workspace #470)', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
+    mock.clock(on, { now: T0 })
+    limits(on, 24, 0.2)
+    expect(await spawn($, on, { subagentType: 'reviewer', model: 'sonnet' })).toBe('claude-opus-5-5')
   })
   run('on pace an explicit Opus is kept', { pace: 'on', limitPressure: 'off' }, async ($: any, on: any) => {
     mock.clock(on, { now: T0 })

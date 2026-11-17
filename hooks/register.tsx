@@ -756,6 +756,24 @@ export const register: Register = (on, options) => {
         model = MODEL_FOR_TIER[judgeMin]
         tier = judgeMin
       }
+      // A judge the caller named Sonnet runs on its definition's floor (Opus for reviewer) while usage is on
+      // pace; under a pace step Sonnet is the floor and stays (code2-workspace #470: a reviewer named Sonnet
+      // ran on Sonnet, and the report could not tell a pace step from a habit). The log says which.
+      if (limitRole === 'judge' && tier === 'standard') {
+        const floor = judgeFloor(e.subagentType, await agentDefinition($, e.subagentType))
+        if (floor && ORDER.indexOf(floor) > ORDER.indexOf('standard')) {
+          const p = paceMode ? await currentPace($, now) : undefined
+          if (p && p.steps > 0) {
+            paceHit = p
+            why = `kept: the Agent call named ${shortModel(e.model)} (lowered for pace: ${paceText(p)}, judge floor Sonnet under pace)`
+          } else {
+            judgeMin = floor
+            why = `raised: the Agent call named ${shortModel(e.model)}, a judge runs on its definition's model while usage is on pace · judge floor ${shortModel(MODEL_FOR_TIER[floor])}`
+            model = MODEL_FOR_TIER[floor]
+            tier = floor
+          }
+        }
+      }
       // Brian, 2026-11-10 (decision 2, "i approve"): under usage pace pressure an explicit Opus on a
       // non-judging agent drops to Sonnet, because agents name Opus by habit (73 of 132 Opus spawns on
       // Nov 9-10) and the pace rule never reached them. Judges keep Opus; nothing drops below Sonnet.
