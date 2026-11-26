@@ -14,6 +14,8 @@ A model id update that moves a tier to another model family is MINOR. Pre-releas
 
 ## Steps
 
+Every merge that changes `hooks/` or `types/` bumps the version, or installed copies keep the old code; `make check` refuses it otherwise.
+
 1. Add a `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md` and bump `plugin.json`.
 2. Run `claude plugin validate .` and `claude plugin test .`.
 3. Merge the PR, then tag the merge commit:
