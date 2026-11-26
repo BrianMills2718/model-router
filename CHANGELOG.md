@@ -4,6 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+### Fixed (0.8.1-pace.8)
+
+- Version bump so two merged fixes install: #13 and #14 (merged 2026-11-17) shipped with the version unchanged at 0.8.1-pace.7, so Claude Code reused the old installed folder and judges named Haiku or Sonnet were still kept. Source: code2-workspace #985.
+  - A judging agent the caller named Haiku is raised to its definition's floor (code2-workspace #469).
+  - A judging agent the caller named Sonnet is raised to its definition's floor while usage is on pace; under a pace step it keeps Sonnet and the decision log says so (code2-workspace #470).
+- `make check` now fails when `hooks/` or `types/` change without a version bump (`scripts/check_version_bump.sh`).
+
 ### Fixed (0.8.1-pace.7)
 
 - `bulk-worker` skips the risk floor, like `publish-checker`: its definition forbids delete, push, merge, publish and send, so a classifier "risky" on its brief (2026-11-14, two runs "write draft.json and run checker", logged "easy risky → hard (risk floor)") must not lift it from Haiku to Opus. Source: code2-workspace #441.
