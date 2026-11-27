@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions: [Sem
 
 ## [Unreleased]
 
+### Fixed (0.8.1-pace.9)
+
+- A plugin judge (`<plugin>:<name>`) takes its floor from its own definition, `agents/<name>.md` in the plugin's install folder (from `~/.claude/plugins/installed_plugins.json`). Before, only `~/.claude/agents/<name>.md` was read: a plugin judge got its floor from the `-reviewer` name rule, or from a user agent file of the same name. Spawn tests for a plugin judge named Sonnet added. Source: code2-workspace #1040.
+
 ### Fixed (0.8.1-pace.8)
 
 - Version bump so two merged fixes install: #13 and #14 (merged 2026-11-17) shipped with the version unchanged at 0.8.1-pace.7, so Claude Code reused the old installed folder and judges named Haiku or Sonnet were still kept. Source: code2-workspace #985.
