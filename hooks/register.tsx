@@ -349,13 +349,36 @@ async function windowPercent($: EngineInterface): Promise<number> {
   }
 }
 
-/** A judging agent's definition text from `~/.claude/agents/<name>.md`, or undefined (plugin and built-in agents). */
+/**
+ * The folder a plugin is installed in, from Claude Code's install record; the user-scope entry when
+ * there are several. Undefined for a plugin the record does not name (one loaded with `--plugin-dir`).
+ */
+async function pluginRoot($: EngineInterface, home: string, plugin: string): Promise<string | undefined> {
+  const record = `${home}/.claude/plugins/installed_plugins.json`
+  if (!(await $.fs.exists(record))) return undefined
+  const { plugins } = JSON.parse(await $.fs.read(record)) as {
+    plugins?: Record<string, { scope?: string; installPath?: string }[]>
+  }
+  const entries = Object.entries(plugins ?? {})
+    .filter(([key]) => key.startsWith(`${plugin}@`))
+    .flatMap(([, list]) => list)
+  return (entries.find(e => e.scope === 'user') ?? entries[0])?.installPath
+}
+
+/**
+ * A judging agent's definition text: `agents/<name>.md` in its plugin's install folder for
+ * `<plugin>:<name>`, else `~/.claude/agents/<name>.md`. A plugin agent never takes a user file of the
+ * same name, which defines a different agent. Undefined when there is no file (built-in agents).
+ */
 async function agentDefinition($: EngineInterface, agentType: string): Promise<string | undefined> {
   try {
     const home = await $.env.get('HOME')
-    const name = agentType.split(':').pop() ?? ''
-    if (!home || !/^[\w.-]+$/.test(name)) return undefined
-    const path = `${home}/.claude/agents/${name}.md`
+    const parts = agentType.split(':')
+    if (!home || parts.length > 2 || !parts.every(p => /^[\w.-]+$/.test(p))) return undefined
+    const name = parts[parts.length - 1]!
+    const root = parts.length === 2 ? await pluginRoot($, home, parts[0]!) : `${home}/.claude`
+    if (!root) return undefined
+    const path = `${root}/agents/${name}.md`
     return (await $.fs.exists(path)) ? await $.fs.read(path) : undefined
   } catch {
     return undefined

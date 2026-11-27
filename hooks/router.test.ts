@@ -308,6 +308,74 @@ describe('agent.spawn', () => {
     expect(spawnedOn).toBe('claude-opus-5-5')
   })
 
+  // code2-workspace#1040: a plugin judge named Sonnet, on and over pace, and the plugin's own definition.
+  const T0 = 1_000_000_000_000
+  const PLUGIN_ROOT = '/home/test/.claude/plugins/cache/mp/acme/1.0.0'
+  const namedSonnet = (
+    title: string,
+    c: { agent: string; used?: number; files?: Record<string, string>; want: string },
+  ) =>
+    test(title, { options: { pace: 'on', limitPressure: 'off' } }, async ($, on) => {
+      mock.clock(on, { now: T0 })
+      on('session.usage', async () => ({
+        value: {
+          startedAt: 0,
+          context: {} as never,
+          rateLimits: [
+            { kind: 'seven_day', percentUsed: c.used ?? 20, resetsAt: new Date(T0 + 0.8 * 168 * 3_600_000).toISOString() },
+          ],
+        },
+      }))
+      const files: Record<string, string> = c.files ?? {}
+      on('env.get', async () => ({ value: '/home/test' }))
+      on('fs.exists', async (_$, e) => ({ value: e.path in files }))
+      on('fs.read', async (_$, e) => ({ value: files[e.path] ?? '' }))
+      on('fs.write', async () => ({ value: undefined }))
+      let spawnedOn: string | undefined
+      on('agent.spawn', async (_$, e) => {
+        spawnedOn = e.model
+        return { model: e.model ?? '', agentId: 'p' }
+      })
+      await $.agent.spawn(spawnInput({ subagentType: c.agent, model: 'sonnet' }))
+      expect(spawnedOn).toBe(c.want)
+    })
+  const installed = {
+    '/home/test/.claude/plugins/installed_plugins.json': JSON.stringify({
+      version: 2,
+      plugins: {
+        'acme@mp': [
+          { scope: 'project', installPath: '/gone' },
+          { scope: 'user', installPath: PLUGIN_ROOT },
+        ],
+      },
+    }),
+  }
+  const definition = (model: string) => `---\nmodel: ${model}\n---\nbody`
+  namedSonnet('a plugin reviewer named Sonnet is raised to Opus while on pace', {
+    agent: 'company-planning:planning-compliance-reviewer',
+    want: 'claude-opus-5-5',
+  })
+  namedSonnet('a plugin reviewer named Sonnet keeps Sonnet at 2x pace', {
+    agent: 'company-planning:planning-compliance-reviewer',
+    used: 45,
+    want: 'sonnet',
+  })
+  namedSonnet('a plugin judge takes its floor from its own definition (Opus)', {
+    agent: 'acme:code-review',
+    files: { ...installed, [`${PLUGIN_ROOT}/agents/code-review.md`]: definition('opus') },
+    want: 'claude-opus-5-5',
+  })
+  namedSonnet('a plugin reviewer whose definition says Sonnet keeps Sonnet', {
+    agent: 'acme:plan-reviewer',
+    files: { ...installed, [`${PLUGIN_ROOT}/agents/plan-reviewer.md`]: definition('sonnet') },
+    want: 'sonnet',
+  })
+  namedSonnet('a plugin judge does not take a user agent file of the same name', {
+    agent: 'acme:reviewer',
+    files: { ...installed, '/home/test/.claude/agents/reviewer.md': definition('sonnet') },
+    want: 'claude-opus-5-5',
+  })
+
   test('a non-judge the caller named Sonnet stays on Sonnet', async ($, on) => {
     mock.clock(on)
     let spawnedOn: string | undefined
